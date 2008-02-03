@@ -1,0 +1,76 @@
+
+%define safe_name #safe_name#
+%define rpm_name  #rpm_name#
+%define vendor_id #vendor_id#
+%define device_id #device_id#
+%define subvendor_id #subvendor_id#
+%define subdevice_id #subdevice_id#
+%define version   #version#
+%define epoch     0
+%define limit_system_support #limit_system_support#
+
+%define full_pci_id ven_%{vendor_id}_dev_%{device_id}_subven_%{subvendor_id}_subdev_%{subdevice_id}
+
+Summary:   LSI RAID Controller firmware upgrade
+Name:      %{rpm_name}
+Epoch:     %{epoch}
+Version:   %{version}
+Release:   20
+Vendor:    Dell
+License:   Proprietary
+Group:     System Environment/Base
+BuildArch: noarch
+BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-%(id -u)-buildroot/
+Source0:   %{safe_name}-%{version}.tar.bz2
+
+Requires:  firmware-addon-dell >= 0:2.0
+Requires:  firmware-tools >= 0:2.0
+Requires:  dell-lsiflash >= 0:2.0
+
+%if %{?limit_system_support:1}%{!?limit_system_support:0}
+Provides: pci_firmware(%{full_pci_id})/system(%{limit_system_support}) = %{epoch}:%{version}-%{release}
+%endif
+Provides:  pci_firmware(%{full_pci_id}) = %{epoch}:%{version}-%{release}
+
+%description
+This package contains PCI Firmware update version %{version}  (vendor: %{vendor_version})
+
+This is an _UNOFFICIAL_ package, not supported by Dell. Do not call Dell
+technical support concerning this package, because you will not get help there.
+Please use the mailing lists for support. firmware-tools-devel@lists.us.dell.com
+would be a good place to start.
+
+If this package is useful to you, feedback is appreciated.
+
+%prep
+%setup -n %{safe_name}_version_%{version}
+
+%build
+
+%install
+rm -rf $RPM_BUILD_ROOT
+mkdir -p $RPM_BUILD_ROOT/%{_datadir}/firmware/dell/lsi%{?limit_system_support:/system_%{limit_system_support}}/%{safe_name}_version_%{version}/
+install -m 644 * $RPM_BUILD_ROOT/%{_datadir}/firmware/dell/lsi%{?limit_system_support:/system_%{limit_system_support}}/%{safe_name}_version_%{version}/
+
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%files
+%defattr(-,root,root)
+%doc dell-std-license.txt
+%{_datadir}/firmware/dell/lsi/*
+
+%posttrans
+# only attempt to update after we have gotten to the end of the
+# transaction and all the requisite rpms have been installed. we might
+# have deps on other rpms.
+/usr/sbin/firmwaretool --update --rpm -y
+
+
+%changelog
+* Fri Feb 1 2008 Michael Brown <mebrown@michaels-house.net> - 20-1
+- Add changelog entries. :)
+- change subdir for packaged bios files to /dell/bios/
+- Small packaging changes only to make bios work with firmware-tools 2.0
+

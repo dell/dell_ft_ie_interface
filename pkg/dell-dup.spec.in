@@ -1,0 +1,80 @@
+# vim:tw=0:ts=4:sw=4:et
+
+%define major @RELEASE_MAJOR@
+%define minor @RELEASE_MINOR@
+%define sub @RELEASE_SUBLEVEL@
+%define extralevel @RELEASE_RPM_EXTRALEVEL@
+%define release_name dell-dup
+%define release_version %{major}.%{minor}.%{sub}%{extralevel}
+%define rpm_release 1
+
+%{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
+%{!?python_sitearch: %define python_sitearch %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib(1)")}
+
+# disable debuginfo package as it now barfs on our precompiled
+# binaries...
+%define debug_package %{nil}
+
+Name:           %{release_name}
+Version:        %{release_version} 
+Release:        %{rpm_release}%{?dist}
+Summary:        A firmware-tools plugin to handle converting Dell DUPs to FT format.
+
+Group:          Applications/System
+# License is actually GPL/OSL dual license (GPL Compatible), but rpmlint complains
+License:        GPL style
+URL:            http://linux.dell.com/libsmbios/download/ 
+Source0:        http://linux.dell.com/libsmbios/download/%{name}/%{name}-%{version}/%{name}-%{version}.tar.gz
+BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+
+# Dell only sells Intel-compat systems, so this package doesnt make much sense
+# on, eg. PPC.  Also, we rely on libsmbios, which is only avail on Intel-compat
+ExclusiveArch: x86_64 %{ix86}
+
+BuildRequires:  python-devel
+
+# I know rpmlint complains about this (An ERROR, in fact), but it is a
+# false positive. Auto deps cannot find this one because I actually am running
+# binaries, not linking agains libs, as indicated by the fact that I require 
+# the -bin package
+Requires: firmware-tools >= 0:1.3.0
+Requires: compat-libstdc++-33
+
+%description
+This firmware-tools plugin will extract Dell DUPs into Firmware-Tools format.
+
+%prep
+%setup -q
+
+
+%build
+%configure
+make -e %{?_smp_mflags} 
+
+%check
+make -e %{?_smp_mflags} check
+
+%install
+rm -rf $RPM_BUILD_ROOT
+make install DESTDIR=%{buildroot} INSTALL="%{__install} -p"
+mkdir -p $RPM_BUILD_ROOT/%{_datadir}/firmware/dup/
+
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+
+%files
+%defattr(-,root,root,-)
+%doc COPYING-GPL COPYING-OSL README
+%{python_sitearch}/*
+%{_libexecdir}/*
+%{_datadir}/firmware/dup/
+%config(noreplace) %{_sysconfdir}/firmware/firmware.d/*.conf
+%{_datadir}/firmware-tools/*
+
+
+
+%changelog
+* Thu May 24 2007 Michael E Brown <michael_e_brown at dell.com> - 1.3.0-1
+- Fedora-compliant packaging changes.

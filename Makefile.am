@@ -3,13 +3,10 @@
 include Makefile-std
 
 pkgconfdir = $(sysconfdir)/firmware/firmware.d/
-dist_pkgconf_DATA = pkg/dell_dup.conf
+dist_pkgconf_DATA = pkg/dell-dup.conf
 
 pkgdatadir = $(datadir)/firmware-tools/
 dist_pkgdata_DATA = pkg/dup.spec.in
-
-pkglibexecdir = $(libexecdir)/$(PACKAGE_NAME)
-pkglibexec_DATA = 
 
 pkgpython_PYTHON = \
 	dell_dup/buildrpm_dup.py  dell_dup/dup.py  dell_dup/extract_dup.py  dell_dup/__init__.py

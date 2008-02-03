@@ -67,12 +67,10 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(-,root,root,-)
 %doc COPYING-GPL COPYING-OSL README
-%{python_sitearch}/*
-%{_libexecdir}/*
+%{python_sitelib}/*
 %{_datadir}/firmware/dup/
 %config(noreplace) %{_sysconfdir}/firmware/firmware.d/*.conf
 %{_datadir}/firmware-tools/*
-
 
 
 %changelog

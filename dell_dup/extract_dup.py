@@ -76,6 +76,29 @@ def getSystemDependencies(packageXml):
 
 
 decorate(traceLog())
+def minDupVersion(extractDir, maj, min, mtv):
+    dmaj = dmin = dmtv = 0
+    fd = open(os.path.join(extractDir, "build_variables.txt"),"r")
+    while True:
+        line = fd.readline()
+        if line == "": break
+        line = common.chomp(line)
+        if line.startswith("BLD_RPL_MJV="): dmaj = int(line.replace("BLD_RPL_MJV=",""))
+        if line.startswith("BLD_RPL_MNV="): dmaj = int(line.replace("BLD_RPL_MNV=",""))
+        if line.startswith("BLD_RPL_MTV="): dmaj = int(line.replace("BLD_RPL_MTV=",""))
+    fd.close()
+    for di, i in (dmaj, maj), (dmin, min), (dmtv, mtv):
+        if di < i:
+            return False
+        elif di > i:
+            return True
+
+    return True
+
+    
+
+
+decorate(traceLog())
 def dupFromLinuxDup(statusObj, outputTopdir, logger, *args, **kargs):
     common.assertFileExt( statusObj.file, '.bin')
     common.copyToTmp(statusObj)

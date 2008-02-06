@@ -86,28 +86,29 @@ def getPciDevices(dom):
         yield (ven, dev, subven, subdev)
 
 decorate(traceLog())
-def minDupVersion(extractDir, maj, min, mtv):
+def getDupVersion(extractDir):
     dmaj = dmin = dmtv = 0
     try:
         fd = open(os.path.join(extractDir, "build_variables.txt"),"r")
+        while not fd.closed:
+            line = fd.readline()
+            if line == "": fd.close()
+            line = common.chomp(line)
+            if line.startswith("BLD_RPL_MJV="): dmaj = int(line.replace("BLD_RPL_MJV=",""))
+            if line.startswith("BLD_RPL_MNV="): dmin = int(line.replace("BLD_RPL_MNV=",""))
+            if line.startswith("BLD_RPL_MTV="): dmtv = int(line.replace("BLD_RPL_MTV=",""))
     except IOError:
-        raise common.skip, "no build_variables.txt found"
+        pass
 
-    while not fd.closed:
-        line = fd.readline()
-        if line == "": fd.close()
-        line = common.chomp(line)
-        if line.startswith("BLD_RPL_MJV="): dmaj = int(line.replace("BLD_RPL_MJV=",""))
-        if line.startswith("BLD_RPL_MNV="): dmin = int(line.replace("BLD_RPL_MNV=",""))
-        if line.startswith("BLD_RPL_MTV="): dmtv = int(line.replace("BLD_RPL_MTV=",""))
+    return dmaj, dmin, dmtv
 
-    for di, i in ((dmaj, maj), (dmin, min), (dmtv, mtv)):
-        if di < i:
-            return False
-        elif di > i:
-            return True
-
-    return True
+def compareVersions(i, j):
+    for i, j in zip(i,j):
+        if i < j:
+            return -1
+        elif i > j:
+            return 1
+    return 0
 
 decorate(traceLog())
 def genericLinuxDup(statusObj, outputTopdir, logger, *args, **kargs):
@@ -122,36 +123,120 @@ def genericLinuxDup(statusObj, outputTopdir, logger, *args, **kargs):
 
     dom = xml.dom.minidom.parse(os.path.join(statusObj.tmpdir, "package.xml"))
 
-    if not minDupVersion(statusObj.tmpdir, 5, 0, 0):
-        return False
+    #logDupInfo(dom, statusObj, logger)
 
     extracted = False
-    dellVersion   = HelperXml.getNodeAttribute(dom, "dellVersion", "SoftwareComponent").lower()
-    name   = HelperXml.getNodeText(dom, "SoftwareComponent", "Name", "Display")
-    compId = HelperXml.getNodeAttribute(dom, "componentID", "SoftwareComponent", "SupportedDevices", "Device")
+    for outdir in getOutputDirs( dom, statusObj, outputTopdir, logger ):
+        thisVer = getDupVersion(statusObj.tmpdir)
+        existVer = getDupVersion(outdir)
+        # skip if thisVer ties already existing or is older AND existingver valid
+        if existVer != (0,0,0) and compareVersions(existVer, thisVer) >= 0:
+            continue
+
+        shutil.rmtree(outdir, ignore_errors=1)
+        os.makedirs( outdir )
+        common.dupExtract(statusObj.file, outdir, logger) 
+        extracted = True
+
+    return extracted
+
+def getComponentId(dom):
+    return int(HelperXml.getNodeAttribute(dom, "componentID", "SoftwareComponent", "SupportedDevices", "Device"))
+
+def getDellVersion(dom):
+    return HelperXml.getNodeAttribute(dom, "dellVersion", "SoftwareComponent").lower()
+
+def logDupInfo(dom, statusObj, logger):
+    dellVersion   = getDellVersion(dom)
+    compId = getComponentId(dom)
     emb    = HelperXml.getNodeAttribute(dom, "embedded",    "SoftwareComponent", "SupportedDevices", "Device")
-    disp   = HelperXml.getNodeText(dom, "SoftwareComponent", "SupportedDevices", "Device", "Display")
-    moduleLog.info("%s CompID(%s): %s  : %s" % (os.path.basename(statusObj.tmpfile), emb, compId, disp))
+    disp   = HelperXml.getNodeText(dom, "SoftwareComponent", "Name", "Display")
+    hasPci = False
     for pciTuple in getPciDevices(dom):
-        moduleLog.info("  Supports PCI: 0x%04x 0x%04x 0x%04x 0x%04x" % pciTuple)
+        hasPci = True
+        break
+    hasSys = False
+    for sys in getSystemDependencies(dom):
+        hasSys = True
+        break
+    moduleLog.info("ID %05d (%s): %s" % (compId, emb, disp))
+    for pciTuple in getPciDevices(dom):
+        moduleLog.info("\tSupports PCI: 0x%04x 0x%04x 0x%04x 0x%04x" % pciTuple)
+    for sys in getSystemDependencies(dom):
+        moduleLog.info("\tSupports System: 0x%04x" % sys)
+
+supportedPciDevs = [ 1369, 1375, 2608, 3428, 5646, 6315, 6395, 6396, 9181, 9182, 9183, 9294, 9623, 9840, 10269, 12436, 13119, 13514, 13856, 13910 ]
+
+def getOutputDirs(dom, statusObj, outputTopdir, logger):
+    if getComponentId(dom) in supportedPciDevs:
+        yield getOutputDirsForPciDev(dom, statusObj, outputTopdir, logger):
+
+def getFirmwareStrings(dom):
+    dellVersion   = getDellVersion(dom)
+    for pciTuple in getPciDevices(dom):
         fwShortName = "pci_firmware_ven_0x%04x_dev_0x%04x_subven_0x%04x_subdev_0x%04x" % pciTuple
         fwFullName = ("%s_version_%s" % (fwShortName,dellVersion)).lower()
+        yield fwFullName
 
-        extractPaths = []
-        for sys in getSystemDependencies(dom):
-            moduleLog.info("  Supports System: 0x%04x" % sys)
-            extractPaths.append( os.path.join(outputTopdir, "dup", "system_ven_%s_dev_%s" % (DELL_VEN_ID, "0x%04x" % sys, fwFullName))
-            
-        if len(extractPaths) == 0:
-            extractPaths.append(os.path.join(outputTopdir, "dup", fwFullName))
-            
-        for outdir in extractPaths:
-            os.makedirs( outdir )
-            common.dupExtract(statusObj.file, outdir, logger) 
-            extracted = True
+def getOutputDirsForPciDev(dom, statusObj, outputTopdir, logger):
+    gotDevs = False
+    for sys in getSystemDependencies(dom):
+        for fwFullName in getFirmwareStrings(dom):
+            yield os.path.join(outputTopdir, "dup", "system_ven_0x%04x_dev_0x%04x" % (DELL_VEN_ID, sys), fwFullName)
+            gotDevs = True
 
-    if extracted:
-        return extracted
+    if gotDevs: raise StopIteration
+
+    for fwFullName in getFirmwareStrings(dom):
+        yield os.path.join(outputTopdir, "dup", fwFullName)
+        gotDevs = True
+
+    if not gotDevs:
+        raise Exception, "Should have gotten PCI Dev but didnt: %s" % os.path.basename(statusObj.file)
 
 
+# list of all component ids and name
+DATA = """
+ ID 00159 (1): Dell Server System BIOS
+ ID 00160 (1): Dell ESM Firmware
+#ID 01369 (0): LSI Logic PERC3/DCL, PERC3/DC, PERC3/QC, PERC3/SC
+#ID 01375 (1): Adaptec PERC3/Di
+ ID 02517 (0): Dell PowerVault 220S/221S SES Firmware
+#ID 02608 (1): LSI Logic PERC 4/Di
+#ID 03428 (0): LSI Logic PERC 4/SC, PERC 4/DC
+ ID 03967 (1): Dell Backplane Firmware
+ ID 04332 (1): Dell Remote Access Controller - ERA/O
+ ID 04334 (1): Dell Remote Access Controller - ERA and DRAC III/XT
+#ID 05646 (0): Adaptec CERC SATA1.5/6ch
+ ID 05814 (1): Dell BMC Firmware
+ ID 05974 (0): Dell Remote Access Controller - DRAC 4/I, Remote Access Controller - DRAC 4/P
+#ID 06315 (0): LSI Logic PERC 4e/DC
+#ID 06395 (1): LSI Logic Perc 4e/Di
+#ID 06396 (1): LSI Logic PERC 4e/Si
+ ID 08529 (0): Dell MD1000 Controller Card Firmware
+ ID 08735 (0): Dell Remote Access Controller - DRAC 5
+#ID 09181 (0): Dell PERC 5/E Adapter
+#ID 09182 (0): Dell PERC 5/i Integrated
+#ID 09183 (0): Dell PERC 5/i Adapter
+#ID 09294 (0): Dell SAS 5/i Integrated
+#ID 09623 (0): Dell SAS 5/iR Integrated
+#ID 09840 (0): Dell SAS 5/E Adapter
+#ID 10269 (0): Dell SAS 5/iR Adapter
+ ID 11204 (0): Dell SAS Backplane Firmware
+#ID 12436 (0): Dell PERC 6/E Adapter
+#ID 13119 (0): Dell SAS 6/iR Adapter
+ ID 13375 (0): Fujitsu AL10LX, 3.5", 15K, SAS, 73GB, DU, AL10LX, 3.5", 15K, SAS, 146GB, DU, AL10LX, 3.5", 15K, SAS, 300GB, DU
+ ID 13380 (0): Hitachi Viper B, 3.5", 15K, SAS, 73GB, DU, Viper B, 3.5", 15K, SAS, 146GB, DU, Viper B, 3.5", 15K, SAS, 300GB, DU
+ ID 13385 (0): Fujitsu AL10SE, 2.5", 10K, SAS, 73GB, DU, AL10SE, 2.5", 10K, SAS, 146GB, DU
+#ID 13514 (0): Dell PERC 6/i Integrated
+#ID 13856 (0): Dell SAS 6/iR Integrated
+#ID 13910 (0): LSI Logic LSI2032
+ ID 14610 (0): Hitachi Cobra B, 10K, SAS, 2.5"FF, 73GB, DU, Cobra B, 10K, SAS, 2.5"FF, 146GB, DU
+ ID 14612 (0): Fujitsu AL10SX, 2.5", 15K, SAS, 73GB, DU, AL10SX, 2.5", 15K, SAS, 36GB, DU
+ ID 15051 (0): Dell iDRAC v1.0
+ ID 16109 (0): Seagate HD,146G,SAS,3,10K,2.5,SGT2,FIRE,DU, HD,73G,SAS,3,10K,2.5,SGT2,FIRE,DU
+ ID 16111 (0): Seagate Timberland,15K5,SAS3.0,3.5",146GB,SGT3,DU, Timberland,15K5,SAS3.0,3.5",300GB,SGT3,DU, Timberland,15K5,SAS3.0,3.5",73GB,SGT3,DU
+ ID 16114 (0): Seagate Timberland T10,10K,SAS3.0,3.5",146GB,SGT3,DU, Timberland T10,10K,SAS3.0,3.5",300GB,SGT3,DU, Timberland T10,10K,SAS3.0,3.5",73GB,SGT3,DU
+ ID 16117 (0): Seagate Timberland NS,10K,SAS3.5",400GB,DU
+"""
 

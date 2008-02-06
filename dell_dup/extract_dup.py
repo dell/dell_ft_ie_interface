@@ -127,6 +127,7 @@ def genericLinuxDup(statusObj, outputTopdir, logger, *args, **kargs):
 
     extracted = False
     dellVersion   = HelperXml.getNodeAttribute(dom, "dellVersion", "SoftwareComponent").lower()
+    name   = HelperXml.getNodeText(dom, "SoftwareComponent", "Name", "Display")
     compId = HelperXml.getNodeAttribute(dom, "componentID", "SoftwareComponent", "SupportedDevices", "Device")
     emb    = HelperXml.getNodeAttribute(dom, "embedded",    "SoftwareComponent", "SupportedDevices", "Device")
     disp   = HelperXml.getNodeText(dom, "SoftwareComponent", "SupportedDevices", "Device", "Display")

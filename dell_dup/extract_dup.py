@@ -126,7 +126,7 @@ def genericLinuxDup(statusObj, outputTopdir, logger, *args, **kargs):
     #logDupInfo(dom, statusObj, logger)
 
     extracted = False
-    for outdir in getOutputDirs( dom, statusObj, outputTopdir, logger ):
+    for packageIni, outdir in getOutputDirs( dom, statusObj, outputTopdir, logger ):
         thisVer = getDupVersion(statusObj.tmpdir)
         existVer = getDupVersion(outdir)
         # skip if thisVer ties already existing or is older AND existingver valid
@@ -136,6 +136,15 @@ def genericLinuxDup(statusObj, outputTopdir, logger, *args, **kargs):
         shutil.rmtree(outdir, ignore_errors=1)
         os.makedirs( outdir )
         common.dupExtract(statusObj.file, outdir, logger) 
+
+        fd = None
+        try:
+            fd = open( os.path.join(outdir, "package.ini"), "w+")
+            packageIni.write( fd )
+        finally:
+            if fd is not None:
+                fd.close()
+
         extracted = True
 
     return extracted
@@ -169,30 +178,53 @@ supportedPciDevs = [ 1369, 1375, 2608, 3428, 5646, 6315, 6395, 6396, 9181, 9182,
 
 def getOutputDirs(dom, statusObj, outputTopdir, logger):
     if getComponentId(dom) in supportedPciDevs:
-        yield getOutputDirsForPciDev(dom, statusObj, outputTopdir, logger):
+        for output in getOutputDirsForPciDev(dom, statusObj, outputTopdir, logger):
+            yield output
 
-def getFirmwareStrings(dom):
+def getOutputDirsForPciDev(dom, statusObj, outputTopdir, logger):
+    deps = []
+    for sysId in getSystemDependencies(dom):
+        deps.append(sysId)
+
     dellVersion   = getDellVersion(dom)
+    vendorVersion = HelperXml.getNodeAttribute(dom, "vendorVersion", "SoftwareComponent").lower()
+    sysDepTemplate = "system_ven_0x%04x_dev_0x%04x"
+    fwFullName = ""
     for pciTuple in getPciDevices(dom):
         fwShortName = "pci_firmware_ven_0x%04x_dev_0x%04x_subven_0x%04x_subdev_0x%04x" % pciTuple
         fwFullName = ("%s_version_%s" % (fwShortName,dellVersion)).lower()
-        yield fwFullName
+        depName     = "pci_firmware(ven_0x%04x_dev_0x%04x_subven_0x%04x_subdev_0x%04x)" % pciTuple
 
-def getOutputDirsForPciDev(dom, statusObj, outputTopdir, logger):
-    gotDevs = False
-    for sys in getSystemDependencies(dom):
-        for fwFullName in getFirmwareStrings(dom):
-            yield os.path.join(outputTopdir, "dup", "system_ven_0x%04x_dev_0x%04x" % (DELL_VEN_ID, sys), fwFullName)
-            gotDevs = True
+        packageIni = ConfigParser.ConfigParser()
+        packageIni.add_section("package")
+        common.setIni( packageIni, "package",
+            type      = "DUP",
+            name      = depName,
+            safe_name = fwShortName,
+            pciId     = pciTuple,
 
-    if gotDevs: raise StopIteration
+            vendor_id =    "0x%04x" % pciTuple[0],
+            device_id =    "0x%04x" % pciTuple[1],
+            subvendor_id = "0x%04x" % pciTuple[2],
+            subdevice_id = "0x%04x" % pciTuple[3],
 
-    for fwFullName in getFirmwareStrings(dom):
-        yield os.path.join(outputTopdir, "dup", fwFullName)
-        gotDevs = True
+            version        = vendorVersion,
+            dell_version   = dellVersion,
+            vendor_version = vendorVersion,
+            )
 
-    if not gotDevs:
+        if deps:
+            sysDepPath = os.path.join(outputTopdir, "dup", sysDepTemplate, fwFullName)
+            for sysId in deps:
+                packageIni.set("package", "limit_system_support", "ven_0x%04x_dev_0x%04x" % (DELL_VEN_ID,sysId))
+                yield packageIni, sysDepPath % (DELL_VEN_ID, sysId)
+        else:
+            yield packageIni, os.path.join(outputTopdir, "dup", fwFullName)
+
+    if not fwFullName:
         raise Exception, "Should have gotten PCI Dev but didnt: %s" % os.path.basename(statusObj.file)
+
+
 
 
 # list of all component ids and name

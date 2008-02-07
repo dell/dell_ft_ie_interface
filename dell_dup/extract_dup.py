@@ -24,8 +24,8 @@ import dell_dup
 from firmwaretools.trace_decorator import decorate, traceLog, getLog
 import firmwaretools.plugins as plugins
 import firmware_addon_dell.HelperXml as HelperXml
-import firmware_addon_dell.extract_common as common
 try:
+    import firmware_addon_dell.extract_common as common
     import firmware_extract as fte
     import firmware_extract.buildrpm as br
     import extract_cmd
@@ -121,6 +121,9 @@ def genericLinuxDup(statusObj, outputTopdir, logger, *args, **kargs):
     if not 'package.xml' in files:
         raise common.skip, "not a dup, no package.xml present"
 
+    if not os.path.exists(os.path.join(statusObj.tmpdir, "PIEConfig.sh")) and not os.path.exists(os.path.join(statusObj.tmpdir, "framework", "PIEConfig.sh")):
+        raise common.skip, "No PIEConfig.sh, cannot use with this DUP framework."
+
     dom = xml.dom.minidom.parse(os.path.join(statusObj.tmpdir, "package.xml"))
 
     #logDupInfo(dom, statusObj, logger)
@@ -202,6 +205,7 @@ def getOutputDirsForPciDev(dom, statusObj, outputTopdir, logger):
             name      = depName,
             safe_name = fwShortName,
             pciId     = pciTuple,
+            module    = "dell_dup.dup",
 
             vendor_id =    "0x%04x" % pciTuple[0],
             device_id =    "0x%04x" % pciTuple[1],

@@ -67,9 +67,8 @@ def getDupPIE(pkg):
 
     return pie
 
-# not optimal. Need to internalize this at some point in future.
 decorate(traceLog())
-def InventoryFromDup():
+def InventoryFromDup(*args, **kargs):
     for pkg in base.repo.iterPackages():
         if not isinstance(pkg, DUP): continue
         savePath = os.environ["PATH"]
@@ -84,12 +83,3 @@ def InventoryFromDup():
             pass
 
         os.environ["PATH"] = savePath
-
-
-#    for cmd in cmds:
-#        (status, inventoryXml) = commands.getstatusoutput(cmdstr % cmd)
-#        for pkg in svm.genPackagesFromSvmXml(inventoryXml):
-#            yield pkg
-
-
-

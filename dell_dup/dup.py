@@ -31,10 +31,8 @@ import firmware_addon_dell.extract_common as common
 plugin_type = (plugins.TYPE_INVENTORY)
 requires_api_version = "2.0"
 
-base = None
 decorate(traceLog())
 def config_hook(conduit, *args, **kargs):
-    global base
     base = conduit.getBase()
     base.registerInventoryFunction("inventory_dup", InventoryFromDup)
 
@@ -68,7 +66,7 @@ def getDupPIE(pkg):
     return pie
 
 decorate(traceLog())
-def InventoryFromDup(*args, **kargs):
+def InventoryFromDup(base, *args, **kargs):
     for pkg in base.repo.iterPackages():
         if not isinstance(pkg, DUP): continue
         savePath = os.environ["PATH"]

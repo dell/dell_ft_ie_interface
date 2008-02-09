@@ -180,9 +180,8 @@ def logDupInfo(dom, statusObj, logger):
 supportedPciDevs = [ 1369, 1375, 2608, 3428, 5646, 6315, 6395, 6396, 9181, 9182, 9183, 9294, 9623, 9840, 10269, 12436, 13119, 13514, 13856, 13910 ]
 
 def getOutputDirs(dom, statusObj, outputTopdir, logger):
-    if getComponentId(dom) in supportedPciDevs:
-        for output in getOutputDirsForPciDev(dom, statusObj, outputTopdir, logger):
-            yield output
+    for output in getOutputDirsForPciDev(dom, statusObj, outputTopdir, logger):
+        yield output
 
 def getOutputDirsForPciDev(dom, statusObj, outputTopdir, logger):
     deps = []
@@ -224,11 +223,6 @@ def getOutputDirsForPciDev(dom, statusObj, outputTopdir, logger):
                 yield packageIni, sysDepPath % (DELL_VEN_ID, sysId)
         else:
             yield packageIni, os.path.join(outputTopdir, "dup", fwFullName)
-
-    if not fwFullName:
-        raise Exception, "Should have gotten PCI Dev but didnt: %s" % os.path.basename(statusObj.file)
-
-
 
 
 # list of all component ids and name

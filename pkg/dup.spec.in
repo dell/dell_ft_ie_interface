@@ -11,7 +11,7 @@
 
 %define full_pci_id ven_%{vendor_id}_dev_%{device_id}_subven_%{subvendor_id}_subdev_%{subdevice_id}
 
-Summary:   LSI RAID Controller firmware upgrade
+Summary:   Dell DUP for firmware upgrade
 Name:      %{rpm_name}
 Epoch:     %{epoch}
 Version:   %{version}
@@ -25,12 +25,13 @@ Source0:   %{safe_name}-%{version}.tar.bz2
 
 Requires:  firmware-addon-dell >= 0:2.0
 Requires:  firmware-tools >= 0:2.0
-Requires:  dell-lsiflash >= 0:2.0
+Requires:  dell-dup >= 0:2.0
 
 %if %{?limit_system_support:1}%{!?limit_system_support:0}
 Provides: pci_firmware(%{full_pci_id})/system(%{limit_system_support}) = %{epoch}:%{version}-%{release}
-%endif
+%else
 Provides:  pci_firmware(%{full_pci_id}) = %{epoch}:%{version}-%{release}
+%endif
 
 %description
 This package contains PCI Firmware update version %{version}  (vendor: %{vendor_version})
@@ -49,8 +50,8 @@ If this package is useful to you, feedback is appreciated.
 
 %install
 rm -rf $RPM_BUILD_ROOT
-mkdir -p $RPM_BUILD_ROOT/%{_datadir}/firmware/dell/lsi%{?limit_system_support:/system_%{limit_system_support}}/%{safe_name}_version_%{version}/
-install -m 644 * $RPM_BUILD_ROOT/%{_datadir}/firmware/dell/lsi%{?limit_system_support:/system_%{limit_system_support}}/%{safe_name}_version_%{version}/
+mkdir -p $RPM_BUILD_ROOT/%{_datadir}/firmware/dell/dup%{?limit_system_support:/system_%{limit_system_support}}/%{safe_name}_version_%{version}/
+install -m 644 * $RPM_BUILD_ROOT/%{_datadir}/firmware/dell/dup%{?limit_system_support:/system_%{limit_system_support}}/%{safe_name}_version_%{version}/
 
 
 %clean
@@ -59,7 +60,7 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(-,root,root)
 %doc dell-std-license.txt
-%{_datadir}/firmware/dell/lsi/*
+%{_datadir}/firmware/dell/dup/*
 
 %posttrans
 # only attempt to update after we have gotten to the end of the

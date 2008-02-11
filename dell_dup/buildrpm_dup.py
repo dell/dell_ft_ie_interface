@@ -53,17 +53,23 @@ decorate(traceLog())
 def buildrpm_doCheck_hook(conduit, *args, **kargs):
     global conf
     conf = checkConf_buildrpm(conduit.getConf(), conduit.getBase().opts)
+    br.specMapping["DUP"] = {"spec": conf.SPEC_FILE, "ini_hook": buildrpm_ini_hook}
 
+shortName = None
 
 decorate(traceLog())
 def buildrpm_addSubOptions_hook(conduit, *args, **kargs):
-    pass
+    global shortName
+    shortName =common.ShortName(conduit.getOptParser())
 
 # this is called by the buildrpm_doCheck_hook and should ensure that all config
 # options have reasonable default values and that config file values are
 # properly overridden by cmdline options, where applicable.
 decorate(traceLog())
 def checkConf_buildrpm(conf, opts):
+    shortName.check(conf, opts)
+    if getattr(conf, "delldupspec", None) is None:
+        conf.delldupspec = None
     return conf
 
 # this hook is called during the RPM build process. It should munge the ini
@@ -71,7 +77,22 @@ def checkConf_buildrpm(conf, opts):
 # file.
 decorate(traceLog())
 def buildrpm_ini_hook(ini):
-    pass
+    # we want the RPMs to be versioned with the Dell version, but the
+    # comparision at inventory level still uses plain 'version' field.
+    ini.set("package", "version", ini.get("package", "dell_version"))
+
+    # set the rpm name
+    rpmName = ini.get("package", "safe_name").replace("pci_firmware", ini.get("package", "type"))
+    if ini.has_option("package", "limit_system_support"):
+        sys = ini.get("package", "limit_system_support")
+        if sys:
+            id = sys.split("_")
+            shortname = shortName.getShortname(id[1], id[3])
+            if shortname:
+                rpmName = rpmName + "_for_" + shortname
+            else:
+                rpmName = rpmName + "_for_system_" + sys
+    ini.set("package", "rpm_name", rpmName)
 
 #####################
 # END buildrpm hooks

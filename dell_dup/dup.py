@@ -23,6 +23,7 @@ import sys
 # local modules
 import firmwaretools as ft
 import firmwaretools.package as package
+import firmware_addon_dell.biosHdr as biosHdr
 import firmware_addon_dell.svm as svm
 from firmwaretools.trace_decorator import decorate, traceLog, getLog
 
@@ -43,14 +44,17 @@ class DUP(package.RepositoryPackage):
         self.capabilities['can_downgrade'] = False
         self.capabilities['can_reflash'] = False
 
-    def bInstall(self):
+    def install(self):
+        self.status = "in_progress"
         savePath = os.environ["PATH"]
         try:
             pie = getDupPIE(self)
             os.environ["PATH"] = os.path.pathsep.join([os.environ.get('PATH',''), self.path])
-            out = common.loggedCmd( pie["sExecutionCliBin"] + " " + pie["sExecutionCliArgs"], shell=True, returnOutput=True, cwd=pkg.path, timeout=int(pie["sExecutionCliTimeout"]), logger=getLog())
+            out = common.loggedCmd( pie["sExecutionCliBin"] + " " + pie["sExecutionCliArgs"], shell=True, returnOutput=True, cwd=self.path, timeout=int(pie["sExecutionCliTimeout"]), logger=getLog())
         finally:
+            self.status = "failed"
             os.environ["PATH"] = savePath
+        self.status = "warm_reboot_needed"
 
 def getPieConfig(pkg):
     for pieConfig in ("PIEConfig.sh", "framework/PIEConfig.sh"):
@@ -75,10 +79,13 @@ def getDupPIE(pkg):
 
     return pie
 
+DELL_VEN_ID = 0x1028
+
 decorate(traceLog())
 def InventoryFromDup(base, cb=None, *args, **kargs):
     bootstrap = [i.name for i in base.yieldBootstrap()]
-    for pkg in base.repo.iterPackages():
+    thisSys = "ven_0x%04x_dev_0x%04x" % (DELL_VEN_ID,biosHdr.getSystemId())
+    for pkg in base.repo.iterLatestPackages():
         if not isinstance(pkg, DUP):
             getLog(prefix="verbose.").info("Not a DUP.")
             continue
@@ -86,6 +93,12 @@ def InventoryFromDup(base, cb=None, *args, **kargs):
         if not pkg.name in bootstrap:
             getLog(prefix="verbose.").info("Not in bootstrap: %s" % repr(pkg.name))
             continue
+
+        if pkg.conf.has_option("package", "limit_system_support"):
+            sys = pkg.conf.get("package", "limit_system_support")
+            if sys != thisSys:
+                getLog(prefix="verbose.").info("System-specific pkg doesnt match this system: %s != %s" % (thisSys, sys))
+                continue
 
         savePath = os.environ["PATH"]
         try:

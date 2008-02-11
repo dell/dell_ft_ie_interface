@@ -7,7 +7,7 @@
   # Dual Licenced under GNU GPL and OSL
   #
   #############################################################################
-"""extract_lsi:  not executable
+"""
 """
 
 from __future__ import generators
@@ -21,7 +21,7 @@ import shutil
 import sys
 import xml.dom.minidom
 
-import dell_lsiflash
+import dell_dup
 from firmwaretools.trace_decorator import decorate, traceLog, getLog
 import firmwaretools.plugins as plugins
 import firmware_addon_dell.HelperXml as HelperXml
@@ -35,7 +35,7 @@ except ImportError, e:
     raise plugins.DisablePlugin
 
 # required by the Firmware-Tools plugin API
-__VERSION__ = dell_lsiflash.__VERSION__
+__VERSION__ = dell_dup.__VERSION__
 plugin_type = (plugins.TYPE_CORE,)
 requires_api_version = "2.0"
 # end: api reqs

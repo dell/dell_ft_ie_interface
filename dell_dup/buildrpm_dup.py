@@ -92,10 +92,18 @@ def buildrpm_ini_hook(ini, pkgdir=None):
     pciid = eval(ini.get("package", "pciid"))
     dom = xml.dom.minidom.parse(os.path.join(pkgdir, "package.xml"))
     for node in HelperXml.iterNodeElement(dom, "SoftwareComponent", "SupportedDevices", "Device"):
-        unsafe_name = HelperXml.getNodeText(node, ("Display", {"lang": "en"}))
+        # check properly-formatted name
         if HelperXml.getNodeElement(node, ("PCIInfo", {"vendorID": "%04X" % pciid[0], "deviceID": "%04X" % pciid[1],  "subVendorID": "%04X" % pciid[2], "subDeviceID": "%04X" % pciid[3]})):
-            unsafe_name = HelperXml.getNodeText(node, ("Display", {"lang": "en"})).strip()
-            name = re.sub(r"[^A-Za-z0-9\-_]", "_", unsafe_name)
+            name = HelperXml.getNodeText(node, ("Display", {"lang": "en"})).strip()
+
+        # check if DUP team messed up
+        if HelperXml.getNodeElement(node, ("PCIInfo", {"vendorID": "%X" % pciid[0], "deviceID": "%X" % pciid[1],  "subVendorID": "%X" % pciid[2], "subDeviceID": "%X" % pciid[3]})):
+            name = HelperXml.getNodeText(node, ("Display", {"lang": "en"})).strip()
+
+    name = re.sub(r"[^A-Za-z0-9_]", "_", name)
+    name = name.replace("____", "_")
+    name = name.replace("___", "_")
+    name = name.replace("__", "_")
 
     # set the rpm name
     rpmName = ini.get("package", "safe_name").replace("pci_firmware", name)

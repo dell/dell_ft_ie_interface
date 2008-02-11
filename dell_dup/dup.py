@@ -21,6 +21,7 @@ import stat
 import sys
 
 # local modules
+import firmwaretools as ft
 import firmwaretools.package as package
 import firmware_addon_dell.svm as svm
 from firmwaretools.trace_decorator import decorate, traceLog, getLog
@@ -41,6 +42,15 @@ class DUP(package.RepositoryPackage):
         super(DUP, self).__init__(*args, **kargs)
         self.capabilities['can_downgrade'] = False
         self.capabilities['can_reflash'] = False
+
+    def bInstall(self):
+        savePath = os.environ["PATH"]
+        try:
+            pie = getDupPIE(self)
+            os.environ["PATH"] = os.path.pathsep.join([os.environ.get('PATH',''), self.path])
+            out = common.loggedCmd( pie["sExecutionCliBin"] + " " + pie["sExecutionCliArgs"], shell=True, returnOutput=True, cwd=pkg.path, timeout=int(pie["sExecutionCliTimeout"]), logger=getLog())
+        finally:
+            os.environ["PATH"] = savePath
 
 def getPieConfig(pkg):
     for pieConfig in ("PIEConfig.sh", "framework/PIEConfig.sh"):
@@ -66,12 +76,21 @@ def getDupPIE(pkg):
     return pie
 
 decorate(traceLog())
-def InventoryFromDup(base, *args, **kargs):
+def InventoryFromDup(base, cb=None, *args, **kargs):
+    bootstrap = [i.name for i in base.yieldBootstrap()]
     for pkg in base.repo.iterPackages():
-        if not isinstance(pkg, DUP): continue
+        if not isinstance(pkg, DUP):
+            getLog(prefix="verbose.").info("Not a DUP.")
+            continue
+
+        if not pkg.name in bootstrap:
+            getLog(prefix="verbose.").info("Not in bootstrap: %s" % repr(pkg.name))
+            continue
+
         savePath = os.environ["PATH"]
         try:
             pie = getDupPIE(pkg)
+            ft.callCB(cb, who="dup_inventory", what="running_inventory", details="cmd %s" % pie["sInventoryCliBin"])
             os.environ["PATH"] = os.path.pathsep.join([os.environ.get('PATH',''), pkg.path])
             out = common.loggedCmd( pie["sInventoryCliBin"] + " " + pie["sInventoryCliArgs"], shell=True, returnOutput=True, cwd=pkg.path, timeout=int(pie["sInventoryCliTimeout"]), logger=getLog())
 

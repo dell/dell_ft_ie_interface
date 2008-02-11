@@ -16,6 +16,7 @@ from __future__ import generators
 import ConfigParser
 import glob
 import os
+import re
 import shutil
 import sys
 import xml.dom.minidom
@@ -76,13 +77,28 @@ def checkConf_buildrpm(conf, opts):
 # as appropriate. The INI is used as source for substitutions in the spec
 # file.
 decorate(traceLog())
-def buildrpm_ini_hook(ini):
+def buildrpm_ini_hook(ini, pkgdir=None):
     # we want the RPMs to be versioned with the Dell version, but the
     # comparision at inventory level still uses plain 'version' field.
     ini.set("package", "version", ini.get("package", "dell_version"))
 
+    # get the name
+# <SoftwareComponent ...
+#  <SupportedDevices>^M
+#      <Device componentID="3428" embedded="0">^M
+#            <PCIInfo deviceID="1960" vendorID="1000" subDeviceID="0520" subVendorID="1028" />^M
+#            <Display lang="en"><![CDATA[LSI2032]]></Display>^M
+    name = ini.get("package", "type")
+    pciid = eval(ini.get("package", "pciid"))
+    dom = xml.dom.minidom.parse(os.path.join(pkgdir, "package.xml"))
+    for node in HelperXml.iterNodeElement(dom, "SoftwareComponent", "SupportedDevices", "Device"):
+        unsafe_name = HelperXml.getNodeText(node, ("Display", {"lang": "en"}))
+        if HelperXml.getNodeElement(node, ("PCIInfo", {"vendorID": "%04X" % pciid[0], "deviceID": "%04X" % pciid[1],  "subVendorID": "%04X" % pciid[2], "subDeviceID": "%04X" % pciid[3]})):
+            unsafe_name = HelperXml.getNodeText(node, ("Display", {"lang": "en"})).strip()
+            name = re.sub(r"[^A-Za-z0-9\-_]", "_", unsafe_name)
+
     # set the rpm name
-    rpmName = ini.get("package", "safe_name").replace("pci_firmware", ini.get("package", "type"))
+    rpmName = ini.get("package", "safe_name").replace("pci_firmware", name)
     if ini.has_option("package", "limit_system_support"):
         sys = ini.get("package", "limit_system_support")
         if sys:
@@ -92,6 +108,8 @@ def buildrpm_ini_hook(ini):
                 rpmName = rpmName + "_for_" + shortname
             else:
                 rpmName = rpmName + "_for_system_" + sys
+        ini.set("package", "limit_system_support", "%%define limit_system_support %s" % sys)
+
     ini.set("package", "rpm_name", rpmName)
 
 #####################

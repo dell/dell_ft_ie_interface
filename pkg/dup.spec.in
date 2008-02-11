@@ -7,7 +7,7 @@
 %define subdevice_id #subdevice_id#
 %define version   #version#
 %define epoch     0
-%define limit_system_support #limit_system_support#
+#limit_system_support#
 
 %define full_pci_id ven_%{vendor_id}_dev_%{device_id}_subven_%{subvendor_id}_subdev_%{subdevice_id}
 

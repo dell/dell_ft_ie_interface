@@ -139,6 +139,7 @@ def genericLinuxDup(statusObj, outputTopdir, logger, *args, **kargs):
         shutil.rmtree(outdir, ignore_errors=1)
         os.makedirs( outdir )
         common.dupExtract(statusObj.file, outdir, logger) 
+        shutil.copyfile(conf.license, os.path.join(outdir, os.path.basename(conf.license)))
 
         fd = None
         try:

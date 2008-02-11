@@ -53,7 +53,7 @@ decorate(traceLog())
 def buildrpm_doCheck_hook(conduit, *args, **kargs):
     global conf
     conf = checkConf_buildrpm(conduit.getConf(), conduit.getBase().opts)
-    br.specMapping["DUP"] = {"spec": conf.SPEC_FILE, "ini_hook": buildrpm_ini_hook}
+    br.specMapping["DUP"] = {"spec": conf.delldupspec, "ini_hook": buildrpm_ini_hook}
 
 shortName = None
 

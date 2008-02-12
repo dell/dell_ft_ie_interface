@@ -104,7 +104,7 @@ def buildrpm_ini_hook(ini, pkgdir=None):
     # set the rpm name
     rpmName = ini.get("package", "safe_name").replace("pci_firmware", name)
     if ini.has_option("package", "limit_system_support"):
-        system = ini.get("package", "limit_system")
+        system = ini.get("package", "limit_system_support")
         if system:
             id = system.split("_")
             shortname = shortName.getShortname(id[1], id[3])

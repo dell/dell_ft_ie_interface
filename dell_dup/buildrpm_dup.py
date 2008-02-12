@@ -13,12 +13,9 @@
 from __future__ import generators
 
 # import arranged alphabetically
-import ConfigParser
-import glob
 import os
 import re
 import shutil
-import sys
 import xml.dom.minidom
 
 import dell_dup
@@ -27,9 +24,7 @@ import firmwaretools.plugins as plugins
 import firmware_addon_dell.HelperXml as HelperXml
 import firmware_addon_dell.extract_common as common
 try:
-    import firmware_extract as fte
     import firmware_extract.buildrpm as br
-    import extract_cmd
 except ImportError, e:
     # disable this plugin if firmware_extract not installed
     raise plugins.DisablePlugin
@@ -81,6 +76,7 @@ def buildrpm_ini_hook(ini, pkgdir=None):
     # we want the RPMs to be versioned with the Dell version, but the
     # comparision at inventory level still uses plain 'version' field.
     ini.set("package", "version", ini.get("package", "dell_version"))
+    shutil.copyfile(conf.license, os.path.join(pkgdir, os.path.basename(conf.license)))
 
     # get the name
 # <SoftwareComponent ...
@@ -108,15 +104,15 @@ def buildrpm_ini_hook(ini, pkgdir=None):
     # set the rpm name
     rpmName = ini.get("package", "safe_name").replace("pci_firmware", name)
     if ini.has_option("package", "limit_system_support"):
-        sys = ini.get("package", "limit_system_support")
-        if sys:
-            id = sys.split("_")
+        system = ini.get("package", "limit_system")
+        if system:
+            id = system.split("_")
             shortname = shortName.getShortname(id[1], id[3])
             if shortname:
                 rpmName = rpmName + "_for_" + shortname
             else:
-                rpmName = rpmName + "_for_system_" + sys
-        ini.set("package", "limit_system_support", "%%define limit_system_support %s" % sys)
+                rpmName = rpmName + "_for_system_" + system
+        ini.set("package", "limit_system_support", "%%define limit_system_support %s" % system)
 
     ini.set("package", "rpm_name", rpmName)
 

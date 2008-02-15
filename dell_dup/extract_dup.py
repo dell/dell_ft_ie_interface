@@ -83,7 +83,7 @@ def getPciDevices(dom=None, deviceNode=None):
     else:
         xmlPath = ("PCIInfo",)
         dom = deviceNode
-        
+
     for pci in HelperXml.iterNodeElement(dom, *xmlPath):
         ven = int(HelperXml.getNodeAttribute(pci, "vendorID"),16)
         dev = int(HelperXml.getNodeAttribute(pci, "deviceID"),16)
@@ -143,7 +143,7 @@ def genericLinuxDup(statusObj, outputTopdir, logger, *args, **kargs):
 
         shutil.rmtree(outdir, ignore_errors=1)
         os.makedirs( outdir )
-        common.dupExtract(statusObj.file, outdir, logger) 
+        common.dupExtract(statusObj.file, outdir, logger)
         shutil.copyfile(conf.license, os.path.join(outdir, os.path.basename(conf.license)))
 
         fd = None
@@ -174,7 +174,7 @@ def getOutputDirs(dom, statusObj, outputTopdir, logger):
         displayName = HelperXml.getNodeText(devNode, ("Display", {"lang": "en"})).strip()
         depName = "dell_dup_componentid_%05d" % componentId
         fwFullName = "%s_version_%s" % (depName, dellVersion)
-    
+
         logger.info("Got package for %s,  componentId: %s  dellVersion: %s  vendorVersion: %s" % (displayName, componentId, dellVersion, vendorVersion))
         logger.info("deps: %s" % repr(deps))
 

@@ -96,9 +96,11 @@ def buildrpm_ini_hook(ini, pkgdir=None):
                 rpmName = rpmName + "_for_" + shortname
             else:
                 rpmName = rpmName + "_for_system_" + system
-        ini.set("package", "limit_system_support", "/system(%s)" % system)
+        ini.set("package", "system_dir", '/system_%s' % system)
+        ini.set("package", "system_provides", '/system(%s)' % system)
     else:
-        ini.set("package", "limit_system_support", "")
+        ini.set("package", "system_dir", "")
+        ini.set("package", "system_provides", "")
 
     ini.set("package", "rpm_name", rpmName)
 

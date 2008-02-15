@@ -102,6 +102,9 @@ def buildrpm_ini_hook(ini, pkgdir=None):
         ini.set("package", "system_dir", "")
         ini.set("package", "system_provides", "")
 
+    if not ini.has_option("package", "vendor_id"):
+        ini.set("package", "vendor_id", "")
+
     ini.set("package", "rpm_name", rpmName)
 
 #####################

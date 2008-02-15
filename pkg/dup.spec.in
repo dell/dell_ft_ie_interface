@@ -1,24 +1,16 @@
 
 %define safe_name #safe_name#
-%define rpm_name  #rpm_name#
-%define vendor_id #vendor_id#
-%define device_id #device_id#
-%define subvendor_id #subvendor_id#
-%define subdevice_id #subdevice_id#
-%define version   #version#
 %define epoch     0
-
-%define full_pci_id ven_%{vendor_id}_dev_%{device_id}_subven_%{subvendor_id}_subdev_%{subdevice_id}
 
 # disable debug package because of the precompiled binaries.
 %define debug_package %{nil}
 
 
-Summary:   Dell DUP for firmware upgrade
-Name:      %{rpm_name}
+Summary:   Dell DUP for #displayname#
+Name:      #rpm_name#
 Epoch:     %{epoch}
-Version:   %{version}
-Release:   20
+Version:   #version#
+Release:   21
 Vendor:    Dell
 License:   Proprietary
 Group:     System Environment/Base
@@ -30,11 +22,15 @@ Requires:  firmware-addon-dell >= 0:2.0
 Requires:  firmware-tools >= 0:2.0
 Requires:  dell-dup >= 0:1.0
 
-Provides: pci_firmware(%{full_pci_id})#system_provides# = %{epoch}:%{version}-%{release}
-
+%if "#vendor_id#" != "%{nil}"
+Provides: pci_firmware(ven_#vendor_id#_dev_#device_id#_subven_#subvendor_id#_subdev_#subdevice_id#)#system_provides# = %{epoch}:%{version}-%{release}
+%endif
+Provides: #safe_name# = %{epoch}:%{version}-%{release}
 
 %description
-This package contains PCI Firmware update version %{version}  (vendor: %{vendor_version})
+This package contains Firmware for #displayname#.
+The Dell version of this firmware is #dell_version#
+The vendor version of this firmware is #vendor_version#
 
 This is an _UNOFFICIAL_ package, not supported by Dell. Do not call Dell
 technical support concerning this package, because you will not get help there.
@@ -70,6 +66,10 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Fri Feb 15 2008 Michael Brown <mebrown@michaels-house.net> - 21-1
+- fix issues with system-specific dups.
+- add support for *all* dups, even non-pci ones.
+
 * Fri Feb 1 2008 Michael Brown <mebrown@michaels-house.net> - 20-1
 - Add changelog entries. :)
 - change subdir for packaged bios files to /dell/bios/

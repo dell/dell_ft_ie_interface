@@ -137,8 +137,8 @@ def genericLinuxDup(statusObj, outputTopdir, logger, *args, **kargs):
         thisVer = getDupVersion(statusObj.tmpdir)
         existVer = getDupVersion(outdir)
         # skip if thisVer ties already existing or is older AND existingver valid
-        if existVer != (0,0,0) and compareVersions(existVer, thisVer) >= 0:
-            logger.info(" PACKAGE IS NOT NEWER THAN ALREADY EXISTING existing: %s,  this: %s" % (repr(existVer), repr(thisVer)))
+        if existVer != (0,0,0) and compareVersions(existVer, thisVer) > 0:
+            logger.info(" PACKAGE IS OLDER THAN ALREADY EXISTING existing: %s,  this: %s" % (repr(existVer), repr(thisVer)))
             continue
 
         shutil.rmtree(outdir, ignore_errors=1)

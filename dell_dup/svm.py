@@ -44,13 +44,32 @@ import firmware_addon_dell.HelperXml as xmlHelp
 #  </Device>
 # </SVMInventory>
 
+# sample XML from inventory collector:
+#
+# <?xml version="1.0" encoding="UTF-8"?>
+#<SVMInventory lang="en" schemaVersion="1.0" timeStamp="2008-02-19T19:14:48">
+#        <OperatingSystem osCode="LIN" osVendor="Redhat" osArch="x86" majorVersion="redhat-release-5Server" minorVersion="2.6.18-8.5patches" usingTPMmeasurements="FALSE"/>
+#        <System systemID="0221" TPMmeasurementsOn="FALSE"/><Device componentID="159" display="BIOS" impactsTPMmeasurements="TRUE"><Application componentType="BIOS" version="0.2.15" display="BIOS"/></Device>
+#        <Device vendorID="1000" deviceID="0030" subDeviceID="50c0" subVendorID="1000" bus="35" device="8" function="0" display="Ultra320 SCSI PCIe Host Adapter" impactsTPMmeasurements="TRUE"><Application componentType="FRMW" version="1.03.39.00.5.10.08.00.12" display="Ultra320 SCSI PCIe Host Adapter"/></Device>
+#        <Device componentID="5814" display="Baseboard Management Controller">
+#      <Application componentType="FRMW" version="1.44" display="BMC"/>
+#   </Device>
+#        <Device vendorID="1000" deviceID="0060" subDeviceID="1F0C" subVendorID="1028" bus="5" device="0" function="0" display="PERC 6/i Integrated Controller 0" impactsTPMmeasurements="TRUE"><Application componentType="FRMW" version="6.0.1-0080" display="PERC 6/i Integrated Controller 0 Firmware"/></Device>
+#        <Device componentID="13313" enum="CtrlId 0 DeviceId 0" display="ST973402SS"><Application componentType="FRMW" version="S206" display="ST973402SS Firmware"/></Device>
+#        <Device componentID="00000" enum="CtrlId 0 DeviceId 1" display="ST936701SS"><Application componentType="FRMW" version="S103" display="ST936701SS Firmware"/></Device>
+#        <Device componentID="11204" enum="CtrlId 0 DeviceId 20 Backplane" display="SAS/SATA Backplane 0:0 Backplane"><Application componentType="FRMW" version="1.05" display="SAS/SATA Backplane 0:0 Backplane Firmware"/></Device>
+#        </SVMInventory>
+
+
 pciShortFirmStr = "pci_firmware(ven_0x%04x_dev_0x%04x)"
 pciFullFirmStr = "pci_firmware(ven_0x%04x_dev_0x%04x_subven_0x%04x_subdev_0x%04x)"
 
 def genPackagesFromSvmXml(xmlstr):
     otherAttrs={}
     dom = xml.dom.minidom.parseString(xmlstr)
+    otherAttrs["dom"] = dom
     for nodeElem in xmlHelp.iterNodeElement( dom, "SVMInventory", "Device" ):
+        otherAttrs["xmlNode"] = nodeElem
         type = package.Device
         componentId = xmlHelp.getNodeAttribute(nodeElem, "componentID")
         if componentId:
@@ -83,7 +102,6 @@ def genPackagesFromSvmXml(xmlstr):
             venId = int(venId, 16)
             devId = int(devId, 16)
             name = pciShortFirmStr % (venId, devId)
-            otherAttrs["xmlNode"] = nodeElem
             if subvenId and subdevId:
                 subdevId = int(subdevId,16)
                 subvenId = int(subvenId,16)

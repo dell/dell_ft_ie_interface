@@ -22,13 +22,14 @@ import sys
 
 # local modules
 import firmwaretools as ft
+import firmwaretools.plugins as plugins
 import firmwaretools.package as package
-import firmware_addon_dell.biosHdr as biosHdr
-import svm
 from firmwaretools.trace_decorator import decorate, traceLog, getLog
 
-import firmwaretools.plugins as plugins
+import svm
 import firmware_addon_dell.extract_common as common
+import firmware_addon_dell.HelperXml as xmlHelp
+import firmware_addon_dell.biosHdr as biosHdr
 
 plugin_type = (plugins.TYPE_INVENTORY)
 requires_api_version = "2.0"
@@ -39,9 +40,9 @@ def config_hook(conduit, *args, **kargs):
     global base
     base = conduit.getBase()
     base.registerInventoryFunction("inventory_dup", InventoryFromDup)
-    base.registerInventoryFunction("inventory_collector_inventory", PackagesFromInventoryCollector)
+    base.registerInventoryFunction("inventory_collector_inventory", InventoryFromInventoryCollector)
     base.registerBootstrapFunction("bootstrap_dup", BootstrapFromDup)
-    base.registerBootstrapFunction("inventory_collector_bootstrap", PackagesFromInventoryCollector)
+    base.registerBootstrapFunction("inventory_collector_bootstrap", BootstrapFromInventoryCollector)
 
 # dummy package type for inventory collector
 class INVCOL(package.RepositoryPackage):
@@ -90,7 +91,17 @@ def getDupPIE(pkg):
 DELL_VEN_ID = 0x1028
 
 decorate(traceLog())
-def PackagesFromInventoryCollector(base=None, cb=None, *args, **kargs):
+def BootstrapFromInventoryCollector(base=None, cb=None, *args, **kargs):
+    for pkg in InventoryFromInventoryCollector(base=base, cb=cb, *args, **kargs):
+        yield pkg
+        sysid = xmlHelp.getNodeAttribute(pkg.dom, "systemID", "SVMInventory", "System")
+        if sysid:
+            sysid = int(sysid,16)
+            pkg.name = "%s/%s" % (pkg.name, "system(ven_0x1028_dev_0x%04x)" % sysid)
+            yield pkg
+
+decorate(traceLog())
+def InventoryFromInventoryCollector(base=None, cb=None, *args, **kargs):
     thisSys = "ven_0x%04x_dev_0x%04x" % (DELL_VEN_ID,biosHdr.getSystemId())
     for pkg in base.repo.iterLatestPackages():
         if not isinstance(pkg, INVCOL):

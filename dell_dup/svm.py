@@ -52,9 +52,11 @@ def genPackagesFromSvmXml(xmlstr):
     dom = xml.dom.minidom.parseString(xmlstr)
     for nodeElem in xmlHelp.iterNodeElement( dom, "SVMInventory", "Device" ):
         type = package.Device
-        componentId = int(xmlHelp.getNodeAttribute(nodeElem, "componentID"),10)
-        otherAttrs["dup_component_id"] = componentId
-        name = "dell_dup_componentid_%05d" % componentId
+        componentId = xmlHelp.getNodeAttribute(nodeElem, "componentID")
+        if componentId:
+            otherAttrs["dup_component_id"] = int(componentId,10)
+            name = "dell_dup_componentid_%05d" % int(componentId,10)
+
         displayname =  xmlHelp.getNodeAttribute(nodeElem, "display", ("Application", {"componentType":"FRMW"}))
         if not displayname:
             displayname =  xmlHelp.getNodeAttribute(nodeElem, "display")

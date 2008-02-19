@@ -9,7 +9,7 @@ pkgdatadir = $(datadir)/firmware-tools/
 dist_pkgdata_DATA = pkg/dup.spec.in
 
 pkgpython_PYTHON = \
-	dell_dup/buildrpm_dup.py  dell_dup/dup.py  dell_dup/extract_dup.py  dell_dup/__init__.py
+	dell_dup/buildrpm_dup.py  dell_dup/dup.py  dell_dup/extract_dup.py  dell_dup/__init__.py   dell_dup/svm.py
 
 REPLACE_VARS_ON_INSTALL= \
 	$(pkgpythondir)/__init__.py

@@ -112,7 +112,7 @@ def InventoryFromInventoryCollector(base=None, cb=None, *args, **kargs):
             ft.callCB(cb, who="inventory_collector_inventory", what="running_inventory", details="This may take several minutes...")
             env = dict(os.environ)
             env["LD_LIBRARY_PATH"] = os.path.pathsep.join([os.environ.get('LD_LIBRARY_PATH',''), pkg.path])
-            out = common.loggedCmd( os.path.join(pkg.path,"invcol"), returnOutput=True, env=env, cwd=pkg.path, timeout=1200, logger=getLog())
+            out = common.loggedCmd( os.path.join(pkg.path,"invcol"), returnOutput=True, env=env, cwd=pkg.path, timeout=1200, logger=getLog(), raiseExc=False)
 
             for pkg in svm.genPackagesFromSvmXml(out):
                 yield pkg
@@ -145,7 +145,7 @@ def InventoryFromDup(base=None, cb=None, *args, **kargs):
 
             env = dict(os.environ)
             env["PATH"] = os.path.pathsep.join([os.environ.get('PATH',''), pkg.path])
-            out = common.loggedCmd( pie["sInventoryCliBin"] + " " + pie["sInventoryCliArgs"], shell=True, returnOutput=True, cwd=pkg.path, timeout=int(pie["sInventoryCliTimeout"]), logger=getLog(), env=env)
+            out = common.loggedCmd( pie["sInventoryCliBin"] + " " + pie["sInventoryCliArgs"], shell=True, returnOutput=True, cwd=pkg.path, timeout=int(pie["sInventoryCliTimeout"]), logger=getLog(), env=env, raiseExc=False)
 
             for pkg in svm.genPackagesFromSvmXml(out):
                 yield pkg
@@ -175,7 +175,7 @@ def BootstrapFromDup(base=None, cb=None, *args, **kargs):
 
             env = dict(os.environ)
             env["PATH"] = os.path.pathsep.join([os.environ.get('PATH',''), pkg.path])
-            out = common.loggedCmd( pie["sInventoryCliBin"] + " " + pie["sInventoryCliArgs"], shell=True, returnOutput=True, cwd=pkg.path, timeout=int(pie["sInventoryCliTimeout"]), logger=getLog(), env=env)
+            out = common.loggedCmd( pie["sInventoryCliBin"] + " " + pie["sInventoryCliArgs"], shell=True, returnOutput=True, cwd=pkg.path, timeout=int(pie["sInventoryCliTimeout"]), logger=getLog(), env=env, raiseExc=False)
 
             for pkg in svm.genPackagesFromSvmXml(out):
                 yield pkg

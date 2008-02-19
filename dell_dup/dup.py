@@ -57,7 +57,7 @@ class DUP(package.RepositoryPackage):
         self.status = "in_progress"
         try:
             pie = getDupPIE(self)
-            env = dict(os.environ["PATH"])
+            env = dict(os.environ)
             env["PATH"] = os.path.pathsep.join([os.environ.get('PATH',''), self.path])
             out = common.loggedCmd( pie["sExecutionCliBin"] + " " + pie["sExecutionCliArgs"], shell=True, returnOutput=True, cwd=self.path, timeout=int(pie["sExecutionCliTimeout"]), logger=getLog(), env=env)
         finally:
@@ -132,7 +132,7 @@ def InventoryFromDup(base=None, cb=None, *args, **kargs):
             pie = getDupPIE(pkg)
             ft.callCB(cb, who="dup_inventory", what="running_inventory", details="cmd %s" % pie["sInventoryCliBin"])
 
-            env = dict(os.environ["PATH"])
+            env = dict(os.environ)
             env["PATH"] = os.path.pathsep.join([os.environ.get('PATH',''), pkg.path])
             out = common.loggedCmd( pie["sInventoryCliBin"] + " " + pie["sInventoryCliArgs"], shell=True, returnOutput=True, cwd=pkg.path, timeout=int(pie["sInventoryCliTimeout"]), logger=getLog(), env=env)
 
@@ -162,7 +162,7 @@ def BootstrapFromDup(base=None, cb=None, *args, **kargs):
             pie = getDupPIE(pkg)
             ft.callCB(cb, who="dup_inventory", what="running_inventory", details="cmd %s" % pie["sInventoryCliBin"])
 
-            env = dict(os.environ["PATH"])
+            env = dict(os.environ)
             env["PATH"] = os.path.pathsep.join([os.environ.get('PATH',''), pkg.path])
             out = common.loggedCmd( pie["sInventoryCliBin"] + " " + pie["sInventoryCliArgs"], shell=True, returnOutput=True, cwd=pkg.path, timeout=int(pie["sInventoryCliTimeout"]), logger=getLog(), env=env)
 

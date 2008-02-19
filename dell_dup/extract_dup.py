@@ -52,6 +52,7 @@ def extract_doCheck_hook(conduit, *args, **kargs):
     global conf
     conf = checkConf(conduit.getConf(), conduit.getBase().opts)
     extract_cmd.registerPlugin(genericLinuxDup, __VERSION__)
+    extract_cmd.registerPlugin(inventoryCollector, __VERSION__)
 
 decorate(traceLog())
 def extract_addSubOptions_hook(conduit, *args, **kargs):
@@ -115,6 +116,51 @@ def compareVersions(i, j):
         elif i > j:
             return 1
     return 0
+
+decorate(traceLog())
+def inventoryCollector(statusObj, outputTopdir, logger, *args, **kargs):
+    if not os.path.basename(statusObj.file).startswith("invcol"):
+        raise common.skip, "file doesnt start with 'invcol'"
+
+    common.copyToTmp(statusObj)
+    common.doOnce( statusObj, common.dupExtract, statusObj.tmpfile, statusObj.tmpdir, logger )
+
+    if not os.path.exists(os.path.join(statusObj.tmpdir, "invcol")):
+        raise common.skip, "No invcol, not an inventory collector."
+
+    os.symlink("diet_build_variables.txt", os.path.join(statusObj.tmpdir,"build_variables.txt"))
+
+    thisVer = getDupVersion(statusObj.tmpdir)
+    outdir = os.path.join(outputTopdir, "dup", "dell_inventory_collector_%d.%d.%d" % thisVer)
+    shutil.rmtree(outdir, ignore_errors=1)
+    os.makedirs( outdir )
+
+    common.dupExtract(statusObj.file, outdir, logger)
+    shutil.copyfile(conf.license, os.path.join(outdir, os.path.basename(conf.license)))
+
+    common.loggedCmd( ["/sbin/ldconfig", "-n", outdir], cwd=outdir, timeout=60, logger=logger)
+
+    packageIni = ConfigParser.ConfigParser()
+    packageIni.add_section("package")
+
+    common.setIni( packageIni, "package",
+        name = "dell_inventory_collector",
+        safe_name = "dell_inventory_collector",
+        type      = "INVCOL",
+        module    = "dell_dup.dup",
+        version   = ".".join( [str(n) for n in thisVer]),
+        )
+
+    fd = None
+    try:
+        fd = open( os.path.join(outdir, "package.ini"), "w+")
+        packageIni.write( fd )
+    finally:
+        if fd is not None:
+            fd.close()
+
+    return True
+
 
 decorate(traceLog())
 def genericLinuxDup(statusObj, outputTopdir, logger, *args, **kargs):

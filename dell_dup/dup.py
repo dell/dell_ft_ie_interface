@@ -60,7 +60,7 @@ class DUP(package.RepositoryPackage):
             pie = getDupPIE(self)
             env = dict(os.environ)
             env["PATH"] = os.path.pathsep.join([os.environ.get('PATH',''), self.path])
-            out = common.loggedCmd( pie["sExecutionCliBin"] + " " + pie["sExecutionCliArgs"], shell=True, returnOutput=True, cwd=self.path, timeout=int(pie["sExecutionCliTimeout"]), logger=getLog(), env=env)
+            out = common.loggedCmd( pie["sExecutionCliBin"] + " " + pie["sExecutionCliArgs"], shell=True, returnOutput=True, cwd=self.path, timeout=int(pie["sExecutionCliTimeout"]), logger=getLog(), env=env, raiseExc=False)
         finally:
             self.status = "failed"
         self.status = "warm_reboot_needed"

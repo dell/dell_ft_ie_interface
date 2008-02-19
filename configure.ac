@@ -4,12 +4,12 @@
 
 ####################################
 # change version here.
-AC_INIT([dell-dup],[1.0.1])
+AC_INIT([dell-dup],[1.0.2])
 
 temp_RELEASE_NAME=dell-dup
 temp_RELEASE_MAJOR=1
 temp_RELEASE_MINOR=0
-temp_RELEASE_SUBLEVEL=1
+temp_RELEASE_SUBLEVEL=2
 temp_RELEASE_EXTRALEVEL=
 ####################################
 

@@ -22,21 +22,31 @@ import sys
 
 # local modules
 import firmwaretools as ft
+import firmwaretools.plugins as plugins
 import firmwaretools.package as package
-import firmware_addon_dell.biosHdr as biosHdr
-import firmware_addon_dell.svm as svm
 from firmwaretools.trace_decorator import decorate, traceLog, getLog
 
-import firmwaretools.plugins as plugins
+import svm
 import firmware_addon_dell.extract_common as common
+import firmware_addon_dell.HelperXml as xmlHelp
+import firmware_addon_dell.biosHdr as biosHdr
 
 plugin_type = (plugins.TYPE_INVENTORY)
 requires_api_version = "2.0"
 
+base=None
 decorate(traceLog())
 def config_hook(conduit, *args, **kargs):
+    global base
     base = conduit.getBase()
     base.registerInventoryFunction("inventory_dup", InventoryFromDup)
+    base.registerInventoryFunction("inventory_collector_inventory", InventoryFromInventoryCollector)
+    base.registerBootstrapFunction("bootstrap_dup", BootstrapFromDup)
+    base.registerBootstrapFunction("inventory_collector_bootstrap", BootstrapFromInventoryCollector)
+
+# dummy package type for inventory collector
+class INVCOL(package.RepositoryPackage):
+    pass
 
 class DUP(package.RepositoryPackage):
     def __init__(self, *args, **kargs):
@@ -46,14 +56,13 @@ class DUP(package.RepositoryPackage):
 
     def install(self):
         self.status = "in_progress"
-        savePath = os.environ["PATH"]
         try:
             pie = getDupPIE(self)
-            os.environ["PATH"] = os.path.pathsep.join([os.environ.get('PATH',''), self.path])
-            out = common.loggedCmd( pie["sExecutionCliBin"] + " " + pie["sExecutionCliArgs"], shell=True, returnOutput=True, cwd=self.path, timeout=int(pie["sExecutionCliTimeout"]), logger=getLog())
+            env = dict(os.environ)
+            env["PATH"] = os.path.pathsep.join([os.environ.get('PATH',''), self.path])
+            out = common.loggedCmd( pie["sExecutionCliBin"] + " " + pie["sExecutionCliArgs"], shell=True, returnOutput=True, cwd=self.path, timeout=int(pie["sExecutionCliTimeout"]), logger=getLog(), env=env)
         finally:
             self.status = "failed"
-            os.environ["PATH"] = savePath
         self.status = "warm_reboot_needed"
 
 def getPieConfig(pkg):
@@ -82,7 +91,37 @@ def getDupPIE(pkg):
 DELL_VEN_ID = 0x1028
 
 decorate(traceLog())
-def InventoryFromDup(base, cb=None, *args, **kargs):
+def BootstrapFromInventoryCollector(base=None, cb=None, *args, **kargs):
+    for pkg in InventoryFromInventoryCollector(base=base, cb=cb, *args, **kargs):
+        yield pkg
+        sysid = xmlHelp.getNodeAttribute(pkg.dom, "systemID", "SVMInventory", "System")
+        if sysid:
+            sysid = int(sysid,16)
+            pkg.name = "%s/%s" % (pkg.name, "system(ven_0x1028_dev_0x%04x)" % sysid)
+            yield pkg
+
+decorate(traceLog())
+def InventoryFromInventoryCollector(base=None, cb=None, *args, **kargs):
+    thisSys = "ven_0x%04x_dev_0x%04x" % (DELL_VEN_ID,biosHdr.getSystemId())
+    for pkg in base.repo.iterLatestPackages():
+        if not isinstance(pkg, INVCOL):
+            getLog(prefix="verbose.").info("Not a Inventory Collector.")
+            continue
+
+        try:
+            ft.callCB(cb, who="inventory_collector_inventory", what="running_inventory", details="This may take several minutes...")
+            env = dict(os.environ)
+            env["LD_LIBRARY_PATH"] = os.path.pathsep.join([os.environ.get('LD_LIBRARY_PATH',''), pkg.path])
+            out = common.loggedCmd( os.path.join(pkg.path,"invcol"), returnOutput=True, env=env, cwd=pkg.path, timeout=1200, logger=getLog())
+
+            for pkg in svm.genPackagesFromSvmXml(out):
+                yield pkg
+        except IOError:
+            pass
+
+
+decorate(traceLog())
+def InventoryFromDup(base=None, cb=None, *args, **kargs):
     bootstrap = [i.name for i in base.yieldBootstrap()]
     thisSys = "ven_0x%04x_dev_0x%04x" % (DELL_VEN_ID,biosHdr.getSystemId())
     for pkg in base.repo.iterLatestPackages():
@@ -100,16 +139,46 @@ def InventoryFromDup(base, cb=None, *args, **kargs):
                 getLog(prefix="verbose.").info("System-specific pkg doesnt match this system: %s != %s" % (thisSys, sys))
                 continue
 
-        savePath = os.environ["PATH"]
         try:
             pie = getDupPIE(pkg)
             ft.callCB(cb, who="dup_inventory", what="running_inventory", details="cmd %s" % pie["sInventoryCliBin"])
-            os.environ["PATH"] = os.path.pathsep.join([os.environ.get('PATH',''), pkg.path])
-            out = common.loggedCmd( pie["sInventoryCliBin"] + " " + pie["sInventoryCliArgs"], shell=True, returnOutput=True, cwd=pkg.path, timeout=int(pie["sInventoryCliTimeout"]), logger=getLog())
+
+            env = dict(os.environ)
+            env["PATH"] = os.path.pathsep.join([os.environ.get('PATH',''), pkg.path])
+            out = common.loggedCmd( pie["sInventoryCliBin"] + " " + pie["sInventoryCliArgs"], shell=True, returnOutput=True, cwd=pkg.path, timeout=int(pie["sInventoryCliTimeout"]), logger=getLog(), env=env)
 
             for pkg in svm.genPackagesFromSvmXml(out):
                 yield pkg
         except IOError:
             pass
 
-        os.environ["PATH"] = savePath
+
+
+
+decorate(traceLog())
+def BootstrapFromDup(base=None, cb=None, *args, **kargs):
+    thisSys = "ven_0x%04x_dev_0x%04x" % (DELL_VEN_ID,biosHdr.getSystemId())
+    for pkg in base.repo.iterLatestPackages():
+        if not isinstance(pkg, DUP):
+            getLog(prefix="verbose.").info("Not a DUP.")
+            continue
+
+        if pkg.conf.has_option("package", "limit_system_support"):
+            sys = pkg.conf.get("package", "limit_system_support")
+            if sys != thisSys:
+                getLog(prefix="verbose.").info("System-specific pkg doesnt match this system: %s != %s" % (thisSys, sys))
+                continue
+
+        try:
+            pie = getDupPIE(pkg)
+            ft.callCB(cb, who="dup_inventory", what="running_inventory", details="cmd %s" % pie["sInventoryCliBin"])
+
+            env = dict(os.environ)
+            env["PATH"] = os.path.pathsep.join([os.environ.get('PATH',''), pkg.path])
+            out = common.loggedCmd( pie["sInventoryCliBin"] + " " + pie["sInventoryCliArgs"], shell=True, returnOutput=True, cwd=pkg.path, timeout=int(pie["sInventoryCliTimeout"]), logger=getLog(), env=env)
+
+            for pkg in svm.genPackagesFromSvmXml(out):
+                yield pkg
+        except IOError:
+            pass
+

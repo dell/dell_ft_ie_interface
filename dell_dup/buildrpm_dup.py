@@ -16,7 +16,6 @@ from __future__ import generators
 import os
 import re
 import shutil
-import xml.dom.minidom
 
 import dell_dup
 from firmwaretools.trace_decorator import decorate, traceLog, getLog
@@ -50,6 +49,7 @@ def buildrpm_doCheck_hook(conduit, *args, **kargs):
     global conf
     conf = checkConf_buildrpm(conduit.getConf(), conduit.getBase().opts)
     br.specMapping["DUP"] = {"spec": conf.delldupspec, "ini_hook": buildrpm_ini_hook}
+    br.specMapping["INVCOL"] = {"spec": conf.dellinvcolspec}
 
 shortName = None
 
@@ -78,31 +78,16 @@ def buildrpm_ini_hook(ini, pkgdir=None):
     ini.set("package", "version", ini.get("package", "dell_version"))
     shutil.copyfile(conf.license, os.path.join(pkgdir, os.path.basename(conf.license)))
 
-    # get the name
-# <SoftwareComponent ...
-#  <SupportedDevices>^M
-#      <Device componentID="3428" embedded="0">^M
-#            <PCIInfo deviceID="1960" vendorID="1000" subDeviceID="0520" subVendorID="1028" />^M
-#            <Display lang="en"><![CDATA[LSI2032]]></Display>^M
-    name = ini.get("package", "type")
-    pciid = eval(ini.get("package", "pciid"))
-    dom = xml.dom.minidom.parse(os.path.join(pkgdir, "package.xml"))
-    for node in HelperXml.iterNodeElement(dom, "SoftwareComponent", "SupportedDevices", "Device"):
-        # check properly-formatted name
-        if HelperXml.getNodeElement(node, ("PCIInfo", {"vendorID": "%04X" % pciid[0], "deviceID": "%04X" % pciid[1],  "subVendorID": "%04X" % pciid[2], "subDeviceID": "%04X" % pciid[3]})):
-            name = HelperXml.getNodeText(node, ("Display", {"lang": "en"})).strip()
-
-        # check if DUP team messed up
-        if HelperXml.getNodeElement(node, ("PCIInfo", {"vendorID": "%X" % pciid[0], "deviceID": "%X" % pciid[1],  "subVendorID": "%X" % pciid[2], "subDeviceID": "%X" % pciid[3]})):
-            name = HelperXml.getNodeText(node, ("Display", {"lang": "en"})).strip()
-
+    name = ini.get("package", "displayname")
     name = re.sub(r"[^A-Za-z0-9_]", "_", name)
     name = name.replace("____", "_")
     name = name.replace("___", "_")
     name = name.replace("__", "_")
 
     # set the rpm name
-    rpmName = ini.get("package", "safe_name").replace("pci_firmware", name)
+    rpmName = ini.get("package", "safe_name")
+    rpmName = rpmName.replace("pci_firmware", name)
+    rpmName = rpmName.replace("dell_dup", name)
     if ini.has_option("package", "limit_system_support"):
         system = ini.get("package", "limit_system_support")
         if system:
@@ -112,7 +97,14 @@ def buildrpm_ini_hook(ini, pkgdir=None):
                 rpmName = rpmName + "_for_" + shortname
             else:
                 rpmName = rpmName + "_for_system_" + system
-        ini.set("package", "limit_system_support", "%%define limit_system_support %s" % system)
+        ini.set("package", "system_dir", '/system_%s' % system)
+        ini.set("package", "system_provides", '/system(%s)' % system)
+    else:
+        ini.set("package", "system_dir", "")
+        ini.set("package", "system_provides", "")
+
+    if not ini.has_option("package", "vendor_id"):
+        ini.set("package", "vendor_id", "")
 
     ini.set("package", "rpm_name", rpmName)
 

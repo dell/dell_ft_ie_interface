@@ -52,6 +52,7 @@ def extract_doCheck_hook(conduit, *args, **kargs):
     global conf
     conf = checkConf(conduit.getConf(), conduit.getBase().opts)
     extract_cmd.registerPlugin(genericLinuxDup, __VERSION__)
+    extract_cmd.registerPlugin(inventoryCollector, __VERSION__)
 
 decorate(traceLog())
 def extract_addSubOptions_hook(conduit, *args, **kargs):
@@ -74,11 +75,17 @@ def getSystemDependencies(dom):
         yield int(systemId, 16)
 
 decorate(traceLog())
-def getPciDevices(dom):
+def getPciDevices(dom=None, deviceNode=None):
     ''' returns list of supported systems from package xml '''
 #      <PCIInfo deviceID="0060" vendorID="1000" subDeviceID="1F0A" subVendorID="1028" />^M
 
-    for pci in HelperXml.iterNodeElement(dom, "SoftwareComponent", "SupportedDevices", "Device", "PCIInfo"):
+    if deviceNode is None:
+        xmlPath = ("SoftwareComponent", "SupportedDevices", "Device", "PCIInfo")
+    else:
+        xmlPath = ("PCIInfo",)
+        dom = deviceNode
+
+    for pci in HelperXml.iterNodeElement(dom, *xmlPath):
         ven = int(HelperXml.getNodeAttribute(pci, "vendorID"),16)
         dev = int(HelperXml.getNodeAttribute(pci, "deviceID"),16)
         subven = int(HelperXml.getNodeAttribute(pci, "subVendorID"),16)
@@ -111,6 +118,51 @@ def compareVersions(i, j):
     return 0
 
 decorate(traceLog())
+def inventoryCollector(statusObj, outputTopdir, logger, *args, **kargs):
+    if not os.path.basename(statusObj.file).startswith("invcol"):
+        raise common.skip, "file doesnt start with 'invcol'"
+
+    common.copyToTmp(statusObj)
+    common.doOnce( statusObj, common.dupExtract, statusObj.tmpfile, statusObj.tmpdir, logger )
+
+    if not os.path.exists(os.path.join(statusObj.tmpdir, "invcol")):
+        raise common.skip, "No invcol, not an inventory collector."
+
+    os.symlink("diet_build_variables.txt", os.path.join(statusObj.tmpdir,"build_variables.txt"))
+
+    thisVer = getDupVersion(statusObj.tmpdir)
+    outdir = os.path.join(outputTopdir, "dup", "dell_inventory_collector_%d.%d.%d" % thisVer)
+    shutil.rmtree(outdir, ignore_errors=1)
+    os.makedirs( outdir )
+
+    common.dupExtract(statusObj.file, outdir, logger)
+    shutil.copyfile(conf.license, os.path.join(outdir, os.path.basename(conf.license)))
+
+    common.loggedCmd( ["/sbin/ldconfig", "-n", outdir], cwd=outdir, timeout=60, logger=logger)
+
+    packageIni = ConfigParser.ConfigParser()
+    packageIni.add_section("package")
+
+    common.setIni( packageIni, "package",
+        name = "dell_inventory_collector",
+        safe_name = "dell_inventory_collector",
+        type      = "INVCOL",
+        module    = "dell_dup.dup",
+        version   = ".".join( [str(n) for n in thisVer]),
+        )
+
+    fd = None
+    try:
+        fd = open( os.path.join(outdir, "package.ini"), "w+")
+        packageIni.write( fd )
+    finally:
+        if fd is not None:
+            fd.close()
+
+    return True
+
+
+decorate(traceLog())
 def genericLinuxDup(statusObj, outputTopdir, logger, *args, **kargs):
     common.assertFileExt(statusObj.file, '.bin')
     common.copyToTmp(statusObj)
@@ -126,19 +178,18 @@ def genericLinuxDup(statusObj, outputTopdir, logger, *args, **kargs):
 
     dom = xml.dom.minidom.parse(os.path.join(statusObj.tmpdir, "package.xml"))
 
-    #logDupInfo(dom, statusObj, logger)
-
     extracted = False
     for packageIni, outdir in getOutputDirs( dom, statusObj, outputTopdir, logger ):
         thisVer = getDupVersion(statusObj.tmpdir)
         existVer = getDupVersion(outdir)
         # skip if thisVer ties already existing or is older AND existingver valid
-        if existVer != (0,0,0) and compareVersions(existVer, thisVer) >= 0:
+        if existVer != (0,0,0) and compareVersions(existVer, thisVer) > 0:
+            logger.info(" PACKAGE IS OLDER THAN ALREADY EXISTING existing: %s,  this: %s" % (repr(existVer), repr(thisVer)))
             continue
 
         shutil.rmtree(outdir, ignore_errors=1)
         os.makedirs( outdir )
-        common.dupExtract(statusObj.file, outdir, logger) 
+        common.dupExtract(statusObj.file, outdir, logger)
         shutil.copyfile(conf.license, os.path.join(outdir, os.path.basename(conf.license)))
 
         fd = None
@@ -153,77 +204,82 @@ def genericLinuxDup(statusObj, outputTopdir, logger, *args, **kargs):
 
     return extracted
 
-def getComponentId(dom):
-    return int(HelperXml.getNodeAttribute(dom, "componentID", "SoftwareComponent", "SupportedDevices", "Device"))
-
-def getDellVersion(dom):
-    return HelperXml.getNodeAttribute(dom, "dellVersion", "SoftwareComponent").lower()
-
-def logDupInfo(dom, statusObj, logger):
-    dellVersion   = getDellVersion(dom)
-    compId = getComponentId(dom)
-    emb    = HelperXml.getNodeAttribute(dom, "embedded",    "SoftwareComponent", "SupportedDevices", "Device")
-    disp   = HelperXml.getNodeText(dom, "SoftwareComponent", "Name", "Display")
-    hasPci = False
-    for pciTuple in getPciDevices(dom):
-        hasPci = True
-        break
-    hasSys = False
-    for sys in getSystemDependencies(dom):
-        hasSys = True
-        break
-    moduleLog.info("ID %05d (%s): %s" % (compId, emb, disp))
-    for pciTuple in getPciDevices(dom):
-        moduleLog.info("\tSupports PCI: 0x%04x 0x%04x 0x%04x 0x%04x" % pciTuple)
-    for sys in getSystemDependencies(dom):
-        moduleLog.info("\tSupports System: 0x%04x" % sys)
-
 def getOutputDirs(dom, statusObj, outputTopdir, logger):
-    for output in getOutputDirsForPciDev(dom, statusObj, outputTopdir, logger):
-        yield output
-
-def getOutputDirsForPciDev(dom, statusObj, outputTopdir, logger):
     deps = []
     for sysId in getSystemDependencies(dom):
         deps.append(sysId)
 
-    dellVersion   = getDellVersion(dom)
+    dellVersion   = HelperXml.getNodeAttribute(dom, "dellVersion", "SoftwareComponent").lower()
     vendorVersion = HelperXml.getNodeAttribute(dom, "vendorVersion", "SoftwareComponent").lower()
     sysDepTemplate = "system_ven_0x%04x_dev_0x%04x"
-    fwFullName = ""
-    for pciTuple in getPciDevices(dom):
-        fwShortName = "pci_firmware_ven_0x%04x_dev_0x%04x_subven_0x%04x_subdev_0x%04x" % pciTuple
-        fwFullName = ("%s_version_%s" % (fwShortName,dellVersion)).lower()
-        depName     = "pci_firmware(ven_0x%04x_dev_0x%04x_subven_0x%04x_subdev_0x%04x)" % pciTuple
 
+    for devNode in HelperXml.iterNodeElement(dom, "SoftwareComponent", "SupportedDevices", "Device"):
         packageIni = ConfigParser.ConfigParser()
         packageIni.add_section("package")
+        componentId = int(HelperXml.getNodeAttribute(devNode, "componentID").strip(),10)
+        displayName = HelperXml.getNodeText(devNode, ("Display", {"lang": "en"})).strip()
+        depName = "dell_dup_componentid_%05d" % componentId
+        fwFullName = "%s_version_%s" % (depName, dellVersion)
+
+        logger.info("Got package for %s,  componentId: %s  dellVersion: %s  vendorVersion: %s" % (displayName, componentId, dellVersion, vendorVersion))
+        logger.info("deps: %s" % repr(deps))
+
         common.setIni( packageIni, "package",
+            name = depName,
+            safe_name = depName,
             type      = "DUP",
-            name      = depName,
-            safe_name = fwShortName,
-            pciId     = pciTuple,
             module    = "dell_dup.dup",
-
-            vendor_id =    "0x%04x" % pciTuple[0],
-            device_id =    "0x%04x" % pciTuple[1],
-            subvendor_id = "0x%04x" % pciTuple[2],
-            subdevice_id = "0x%04x" % pciTuple[3],
-
+            displayname = displayName,
+            dup_component_id = componentId,
             version        = vendorVersion,
             dell_version   = dellVersion,
             vendor_version = vendorVersion,
             )
 
-        if deps:
-            sysDepPath = os.path.join(outputTopdir, "dup", sysDepTemplate, fwFullName)
-            for sysId in deps:
-                packageIni.set("package", "limit_system_support", "ven_0x%04x_dev_0x%04x" % (DELL_VEN_ID,sysId))
-                yield packageIni, sysDepPath % (DELL_VEN_ID, sysId)
-        else:
-            yield packageIni, os.path.join(outputTopdir, "dup", fwFullName)
+        gotPciDev = False
+        for pciTuple in getPciDevices(deviceNode=devNode):
+            gotPciDev = True
+            fwShortName = "pci_firmware_ven_0x%04x_dev_0x%04x_subven_0x%04x_subdev_0x%04x" % pciTuple
+            fwFullName = ("%s_version_%s" % (fwShortName,dellVersion)).lower()
+            depName     = "pci_firmware(ven_0x%04x_dev_0x%04x_subven_0x%04x_subdev_0x%04x)" % pciTuple
+
+            logger.info("  PCI Device: %s" % repr(pciTuple))
+
+            common.setIni( packageIni, "package",
+                name      = depName,
+                safe_name = fwShortName,
+                pciId     = pciTuple,
+
+                vendor_id =    "0x%04x" % pciTuple[0],
+                device_id =    "0x%04x" % pciTuple[1],
+                subvendor_id = "0x%04x" % pciTuple[2],
+                subdevice_id = "0x%04x" % pciTuple[3],
+                )
+
+            for i,j in yieldIniAndPath(packageIni, outputTopdir, deps, fwFullName, sysDepTemplate, logger):
+                yield i,j
+
+        if not gotPciDev:
+            logger.info("  NOT A PCI Device.")
+            for i,j in yieldIniAndPath(packageIni, outputTopdir, deps, fwFullName, sysDepTemplate, logger):
+                yield i,j
 
 
+def yieldIniAndPath(packageIni, outputTopdir, deps, fwFullName, sysDepTemplate, logger):
+    if deps:
+        sysDepPath = os.path.join(outputTopdir, "dup", sysDepTemplate, fwFullName)
+        for sysId in deps:
+            logger.info("  Package for system: 0x%04x" % sysId)
+            packageIni.set("package", "limit_system_support", "ven_0x%04x_dev_0x%04x" % (DELL_VEN_ID,sysId))
+            yield packageIni, sysDepPath % (DELL_VEN_ID, sysId)
+    else:
+        logger.info("  Generic Package")
+        yield packageIni, os.path.join(outputTopdir, "dup", fwFullName)
+
+
+
+
+# OLD, DEPRECATED STUFF BELOW
 
 supportedPciDevs = [ 1369, 1375, 2608, 3428, 5646, 6315, 6395, 6396, 9181, 9182, 9183, 9294, 9623, 9840, 10269, 12436, 13119, 13514, 13856, 13910 ]
 

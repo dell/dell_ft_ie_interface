@@ -79,6 +79,8 @@ def genPackagesFromSvmXml(xmlstr):
         displayname =  xmlHelp.getNodeAttribute(nodeElem, "display", ("Application", {"componentType":"FRMW"}))
         if not displayname:
             displayname =  xmlHelp.getNodeAttribute(nodeElem, "display")
+        if not displayname:
+            displayname =  "Unknown Dell Update Package"
 
         venId = xmlHelp.getNodeAttribute(nodeElem, "vendorID")
         devId = xmlHelp.getNodeAttribute(nodeElem, "deviceID")

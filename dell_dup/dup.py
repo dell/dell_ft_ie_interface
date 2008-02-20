@@ -100,85 +100,138 @@ def BootstrapFromInventoryCollector(base=None, cb=None, *args, **kargs):
             pkg.name = "%s/%s" % (pkg.name, "system(ven_0x1028_dev_0x%04x)" % sysid)
             yield pkg
 
-decorate(traceLog())
 def InventoryFromInventoryCollector(base=None, cb=None, *args, **kargs):
-    thisSys = "ven_0x%04x_dev_0x%04x" % (DELL_VEN_ID,biosHdr.getSystemId())
-    for pkg in base.repo.iterLatestPackages():
-        if not isinstance(pkg, INVCOL):
-            getLog(prefix="verbose.").info("Not a Inventory Collector.")
-            continue
+    if _InventoryFromInventoryCollector.instance is None:
+        _InventoryFromInventoryCollector.instance = _InventoryFromInventoryCollector(base=base, cb=cb, *args, **kargs)
+    return _InventoryFromInventoryCollector.instance.get()
 
-        try:
-            ft.callCB(cb, who="inventory_collector_inventory", what="running_inventory", details="This may take several minutes...")
-            env = dict(os.environ)
-            env["LD_LIBRARY_PATH"] = os.path.pathsep.join([os.environ.get('LD_LIBRARY_PATH',''), pkg.path])
-            out = common.loggedCmd( os.path.join(pkg.path,"invcol"), returnOutput=True, env=env, cwd=pkg.path, timeout=1200, logger=getLog(), raiseExc=False)
+class _InventoryFromInventoryCollector(object):
+    instance = None
 
-            for pkg in svm.genPackagesFromSvmXml(out):
-                yield pkg
-        except IOError:
-            pass
+    decorate(traceLog())
+    def __init__(self, base=None, cb=None, *args, **kargs):
+        self.base = base
+        self.cb = cb
+        self.args = args
+        self.kargs = kargs
+        self.pkgInventory = []
 
+        thisSys = "ven_0x%04x_dev_0x%04x" % (DELL_VEN_ID,biosHdr.getSystemId())
+        for pkg in base.repo.iterLatestPackages():
+            if not isinstance(pkg, INVCOL):
+                getLog(prefix="verbose.").info("Not a Inventory Collector.")
+                continue
+
+            try:
+                ft.callCB(cb, who="inventory_collector_inventory", what="running_inventory", details="This may take several minutes...")
+                env = dict(os.environ)
+                env["LD_LIBRARY_PATH"] = os.path.pathsep.join([os.environ.get('LD_LIBRARY_PATH',''), pkg.path])
+                out = common.loggedCmd( os.path.join(pkg.path,"invcol"), returnOutput=True, env=env, cwd=pkg.path, timeout=1200, logger=getLog(), raiseExc=False)
+
+                for pkg in svm.genPackagesFromSvmXml(out):
+                    self.pkgInventory.append(pkg)
+            except IOError:
+                pass
+
+    def get(self):
+        for pkg in self.pkgInventory:
+            yield pkg
 
 decorate(traceLog())
 def InventoryFromDup(base=None, cb=None, *args, **kargs):
-    bootstrap = [i.name for i in base.yieldBootstrap()]
-    thisSys = "ven_0x%04x_dev_0x%04x" % (DELL_VEN_ID,biosHdr.getSystemId())
-    for pkg in base.repo.iterLatestPackages():
-        if not isinstance(pkg, DUP):
-            getLog(prefix="verbose.").info("Not a DUP.")
-            continue
+    if _InventoryFromDup.instance is None:
+        _InventoryFromDup.instance = _InventoryFromDup(base=base, cb=cb, *args, **kargs)
+    return _InventoryFromDup.instance.get()
 
-        if not pkg.name in bootstrap:
-            getLog(prefix="verbose.").info("Not in bootstrap: %s" % repr(pkg.name))
-            continue
+class _InventoryFromDup(object):
+    instance = None
 
-        if pkg.conf.has_option("package", "limit_system_support"):
-            sys = pkg.conf.get("package", "limit_system_support")
-            if sys != thisSys:
-                getLog(prefix="verbose.").info("System-specific pkg doesnt match this system: %s != %s" % (thisSys, sys))
+    decorate(traceLog())
+    def __init__(self, base=None, cb=None, *args, **kargs):
+        self.base = base
+        self.cb = cb
+        self.args = args
+        self.kargs = kargs
+        self.pkgInventory = []
+
+        bootstrap = [i.name for i in base.yieldBootstrap()]
+        thisSys = "ven_0x%04x_dev_0x%04x" % (DELL_VEN_ID,biosHdr.getSystemId())
+        for pkg in base.repo.iterLatestPackages():
+            if not isinstance(pkg, DUP):
+                getLog(prefix="verbose.").info("Not a DUP.")
                 continue
 
-        try:
-            pie = getDupPIE(pkg)
-            ft.callCB(cb, who="dup_inventory", what="running_inventory", details="cmd %s" % pie["sInventoryCliBin"])
+            if not pkg.name in bootstrap:
+                getLog(prefix="verbose.").info("Not in bootstrap: %s" % repr(pkg.name))
+                continue
 
-            env = dict(os.environ)
-            env["PATH"] = os.path.pathsep.join([os.environ.get('PATH',''), pkg.path])
-            out = common.loggedCmd( pie["sInventoryCliBin"] + " " + pie["sInventoryCliArgs"], shell=True, returnOutput=True, cwd=pkg.path, timeout=int(pie["sInventoryCliTimeout"]), logger=getLog(), env=env, raiseExc=False)
+            if pkg.conf.has_option("package", "limit_system_support"):
+                sys = pkg.conf.get("package", "limit_system_support")
+                if sys != thisSys:
+                    getLog(prefix="verbose.").info("System-specific pkg doesnt match this system: %s != %s" % (thisSys, sys))
+                    continue
 
-            for pkg in svm.genPackagesFromSvmXml(out):
-                yield pkg
-        except IOError:
-            pass
+            try:
+                pie = getDupPIE(pkg)
+                ft.callCB(cb, who="dup_inventory", what="running_inventory", details="cmd %s" % pie["sInventoryCliBin"])
 
+                env = dict(os.environ)
+                env["PATH"] = os.path.pathsep.join([os.environ.get('PATH',''), pkg.path])
+                out = common.loggedCmd( pie["sInventoryCliBin"] + " " + pie["sInventoryCliArgs"], shell=True, returnOutput=True, cwd=pkg.path, timeout=int(pie["sInventoryCliTimeout"]), logger=getLog(), env=env, raiseExc=False)
+
+                for pkg in svm.genPackagesFromSvmXml(out):
+                    self.pkgInventory.append(pkg)
+            except IOError:
+                pass
+
+    def get(self):
+        for pkg in self.pkgInventory:
+            yield pkg
 
 
 
 decorate(traceLog())
 def BootstrapFromDup(base=None, cb=None, *args, **kargs):
-    thisSys = "ven_0x%04x_dev_0x%04x" % (DELL_VEN_ID,biosHdr.getSystemId())
-    for pkg in base.repo.iterLatestPackages():
-        if not isinstance(pkg, DUP):
-            getLog(prefix="verbose.").info("Not a DUP.")
-            continue
+    if _BootstrapFromDup.instance is None:
+        _BootstrapFromDup.instance = _BootstrapFromDup(base=base, cb=cb, *args, **kargs)
+    return _BootstrapFromDup.instance.get()
 
-        if pkg.conf.has_option("package", "limit_system_support"):
-            sys = pkg.conf.get("package", "limit_system_support")
-            if sys != thisSys:
-                getLog(prefix="verbose.").info("System-specific pkg doesnt match this system: %s != %s" % (thisSys, sys))
+class _BootstrapFromDup(object):
+    instance = None
+
+    decorate(traceLog())
+    def __init__(self, base=None, cb=None, *args, **kargs):
+        self.base = base
+        self.cb = cb
+        self.args = args
+        self.kargs = kargs
+        self.pkgInventory = []
+
+        thisSys = "ven_0x%04x_dev_0x%04x" % (DELL_VEN_ID,biosHdr.getSystemId())
+        for pkg in base.repo.iterLatestPackages():
+            if not isinstance(pkg, DUP):
+                getLog(prefix="verbose.").info("Not a DUP.")
                 continue
 
-        try:
-            pie = getDupPIE(pkg)
-            ft.callCB(cb, who="dup_inventory", what="running_inventory", details="cmd %s" % pie["sInventoryCliBin"])
+            if pkg.conf.has_option("package", "limit_system_support"):
+                sys = pkg.conf.get("package", "limit_system_support")
+                if sys != thisSys:
+                    getLog(prefix="verbose.").info("System-specific pkg doesnt match this system: %s != %s" % (thisSys, sys))
+                    continue
 
-            env = dict(os.environ)
-            env["PATH"] = os.path.pathsep.join([os.environ.get('PATH',''), pkg.path])
-            out = common.loggedCmd( pie["sInventoryCliBin"] + " " + pie["sInventoryCliArgs"], shell=True, returnOutput=True, cwd=pkg.path, timeout=int(pie["sInventoryCliTimeout"]), logger=getLog(), env=env, raiseExc=False)
+            try:
+                pie = getDupPIE(pkg)
+                ft.callCB(cb, who="dup_inventory", what="running_inventory", details="cmd %s" % pie["sInventoryCliBin"])
 
-            for pkg in svm.genPackagesFromSvmXml(out):
-                yield pkg
-        except IOError:
-            pass
+                env = dict(os.environ)
+                env["PATH"] = os.path.pathsep.join([os.environ.get('PATH',''), pkg.path])
+                out = common.loggedCmd( pie["sInventoryCliBin"] + " " + pie["sInventoryCliArgs"], shell=True, returnOutput=True, cwd=pkg.path, timeout=int(pie["sInventoryCliTimeout"]), logger=getLog(), env=env, raiseExc=False)
 
+                for pkg in svm.genPackagesFromSvmXml(out):
+                    self.pkgInventory.append(pkg)
+            except IOError:
+                pass
+
+    def get(self):
+        for pkg in self.pkgInventory:
+            yield pkg

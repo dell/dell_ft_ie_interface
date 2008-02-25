@@ -14,7 +14,7 @@ pkgpython_PYTHON = \
 REPLACE_VARS_ON_INSTALL= \
 	$(pkgpythondir)/__init__.py
 
-EXTRA_DIST += COPYING-GPL COPYING-OSL
+EXTRA_DIST += COPYING-GPL COPYING-OSL test
 
 TESTS = test/testAll.py
 nodist_check_SCRIPTS = test/testAll.py

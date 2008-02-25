@@ -48,12 +48,37 @@ def config_hook(conduit, *args, **kargs):
 class INVCOL(package.RepositoryPackage):
     pass
 
+decorate(traceLog())
+def numericOnlyCompareStrategy(ver1, ver2):
+    ver1 = int(ver1)
+    ver2 = int(ver2)
+    if ver1 == ver2:
+        return 0
+    if ver1 > ver2:
+        return 1
+    return -1
+
+decorate(traceLog())
+def textCompareStrategy(ver1, ver2):
+    if ver1 == ver2:
+        return 0
+    if ver1 > ver2:
+        return 1
+    return -1
+
 class DUP(package.RepositoryPackage):
     def __init__(self, *args, **kargs):
         super(DUP, self).__init__(*args, **kargs)
         self.capabilities['can_downgrade'] = False
         self.capabilities['can_reflash'] = False
+        if self.version.isdigit():
+            self.compareStrategy = numericOnlyCompareStrategy
+        elif "." in self.version:
+            self.compareStrategy = defaultCompareStrategy
+        else:
+            self.compareStrategy = textCompareStrategy
 
+    decorate(traceLog())
     def install(self):
         self.status = "in_progress"
         try:

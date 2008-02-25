@@ -16,4 +16,6 @@ REPLACE_VARS_ON_INSTALL= \
 
 EXTRA_DIST += COPYING-GPL COPYING-OSL
 
+TESTS = test/testAll.py
+nodist_check_SCRIPTS = test/testAll.py
 

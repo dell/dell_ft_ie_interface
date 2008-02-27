@@ -27,6 +27,11 @@ BuildArch: noarch
 BuildRequires:  python-devel, firmware-tools, firmware-addon-dell
 Requires: firmware-tools >= 0:2.0.0, firmware-addon-dell >= 0:2.0
 
+# sles splits up python stdlib
+%if %(test "%{dist}" == ".sles10"  && echo 1 || echo 0)
+BuildRequires:  python-xml
+%endif
+
 %description
 This firmware-tools plugin will extract Dell DUPs into Firmware-Tools format.
 

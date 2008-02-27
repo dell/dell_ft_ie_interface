@@ -117,6 +117,14 @@ def genPackagesFromSvmXml(xmlstr):
         if not name:
             continue
 
+        import dup
+        if otherAttrs["version"].isdigit():
+            otherAttrs["compareStrategy"] = dup.numericOnlyCompareStrategy
+        elif "." in otherAttrs["version"]:
+            otherAttrs["compareStrategy"] = dup.defaultCompareStrategy
+        else:
+            otherAttrs["compareStrategy"] = dup.textCompareStrategy
+
         yield type(
             name=name,
             displayname=displayname,

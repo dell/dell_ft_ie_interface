@@ -74,7 +74,7 @@ class DUP(package.RepositoryPackage):
         if self.version.isdigit():
             self.compareStrategy = numericOnlyCompareStrategy
         elif "." in self.version:
-            self.compareStrategy = defaultCompareStrategy
+            self.compareStrategy = package.defaultCompareStrategy
         else:
             self.compareStrategy = textCompareStrategy
 

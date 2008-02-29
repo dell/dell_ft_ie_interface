@@ -132,6 +132,7 @@ def InventoryFromInventoryCollector(base=None, cb=None, *args, **kargs):
 
 class _InventoryFromInventoryCollector(object):
     instance = None
+    cachedOutput = None
 
     decorate(traceLog())
     def __init__(self, base=None, cb=None, *args, **kargs):
@@ -149,11 +150,12 @@ class _InventoryFromInventoryCollector(object):
 
             try:
                 ft.callCB(cb, who="inventory_collector_inventory", what="running_inventory", details="This may take several minutes...")
-                env = dict(os.environ)
-                env["LD_LIBRARY_PATH"] = os.path.pathsep.join([os.environ.get('LD_LIBRARY_PATH',''), pkg.path])
-                out = common.loggedCmd( os.path.join(pkg.path,"invcol"), returnOutput=True, env=env, cwd=pkg.path, timeout=1200, logger=getLog(), raiseExc=False)
+                if not self.cachedOutput:
+                    env = dict(os.environ)
+                    env["LD_LIBRARY_PATH"] = os.path.pathsep.join([os.environ.get('LD_LIBRARY_PATH',''), pkg.path])
+                    self.cachedOutput = common.loggedCmd( os.path.join(pkg.path,"invcol"), returnOutput=True, env=env, cwd=pkg.path, timeout=1200, logger=getLog(), raiseExc=False)
 
-                for pkg in svm.genPackagesFromSvmXml(out):
+                for pkg in svm.genPackagesFromSvmXml(self.cachedOutput):
                     self.pkgInventory.append(pkg)
             except IOError:
                 pass

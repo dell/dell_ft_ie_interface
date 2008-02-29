@@ -50,7 +50,7 @@ make -e %{?_smp_mflags} check
 %install
 rm -rf $RPM_BUILD_ROOT
 make install DESTDIR=%{buildroot} INSTALL="%{__install} -p"
-mkdir -p $RPM_BUILD_ROOT/%{_datadir}/firmware/dup/
+mkdir -p $RPM_BUILD_ROOT/%{_datadir}/firmware/dell/dup/
 
 
 %clean
@@ -61,7 +61,7 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root,-)
 %doc COPYING-GPL COPYING-OSL README
 %{python_sitelib}/*
-%{_datadir}/firmware/dup/
+%{_datadir}/firmware/dell/dup/
 %config(noreplace) %{_sysconfdir}/firmware/firmware.d/*.conf
 %{_datadir}/firmware-tools/*
 

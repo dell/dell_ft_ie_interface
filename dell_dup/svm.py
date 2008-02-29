@@ -92,13 +92,20 @@ def genPackagesFromSvmXml(xmlstr):
         function = xmlHelp.getNodeAttribute(nodeElem, "function")
 
         otherAttrs["version"] = "unknown"
-        ver = xmlHelp.getNodeAttribute(nodeElem, "version", ("Application", {"componentType":"FRMW"}))
-        if ver:
-            otherAttrs["version"] = ver.lower()
-        else:
-            ver = xmlHelp.getNodeAttribute(nodeElem, "version", ("Application", {"componentType":"BIOS"}))
+        tagsToTry = (
+            # try BMC first, as it is "special"
+            ("version", ("Application", {"componentType":"FRMW", "display":"Embedded System Management Controller"})),
+            # next comes normal other firmware
+            ("version", ("Application", {"componentType":"FRMW"})),
+            # BIOS also seems to be special, but not short-bus special.
+            ("version", ("Application", {"componentType":"BIOS"})),
+            )
+
+        for tag in tagsToTry:
+            ver = xmlHelp.getNodeAttribute(nodeElem, *tag)
             if ver:
                 otherAttrs["version"] = ver.lower()
+                break
 
         if venId and devId:
             venId = int(venId, 16)

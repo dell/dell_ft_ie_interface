@@ -28,7 +28,7 @@ BuildRequires:  python-devel, firmware-tools, firmware-addon-dell
 Requires: firmware-tools >= 0:2.0.0, firmware-addon-dell >= 0:2.0
 
 Provides: dell-bmcflash, dell-lsiflash
-Obsoletes dell-bmcflash < 0:1.5.0, dell-lsiflash < 0:2.0.6
+Obsoletes: dell-bmcflash < 0:1.5.0, dell-lsiflash < 0:2.0.6
 
 # sles splits up python stdlib
 %if %(test -e /etc/SuSE-release && echo 1 || echo 0)

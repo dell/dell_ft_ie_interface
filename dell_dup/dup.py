@@ -130,7 +130,7 @@ decorate(traceLog())
 def runInvcol(pkgPath):
     runInv = 0
     if not os.path.exists( os.path.join(pkgPath, "out.xml") ):
-        getLog(prefix="verbose").info("invcol output files dont exist, running inventory")
+        getLog(prefix="verbose.").info("invcol output files dont exist, running inventory")
         runInv = 1
     else:
         fd = open("/proc/uptime", "r")
@@ -139,7 +139,7 @@ def runInvcol(pkgPath):
         systemUptimeSeconds = float(line.split()[0])
         statinfo = os.stat(os.path.join(pkgPath, "out.xml"))
         if systemUptimeSeconds < (time.time() - statinfo.st_mtime):
-            getLog(prefix="verbose").info("invcol output not up-to-date: %s < %s" % (systemUptimeSeconds, (time.time() - statinfo.st_mtime)))
+            getLog(prefix="verbose.").info("invcol output not up-to-date: %s < %s" % (systemUptimeSeconds, (time.time() - statinfo.st_mtime)))
             runInv = 1
 
     if runInv:
@@ -163,7 +163,7 @@ def runInvcol(pkgPath):
     except IOError, e:
         pass
 
-    getLog(prefix="verbose").info("invXml: %s" % invXml)
+    getLog(prefix="verbose.").info("invXml: %s" % invXml)
 
     return invXml, errXml
     

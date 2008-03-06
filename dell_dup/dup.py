@@ -19,6 +19,7 @@ import commands
 import os
 import stat
 import sys
+import time
 
 # local modules
 import firmwaretools as ft
@@ -39,9 +40,9 @@ decorate(traceLog())
 def config_hook(conduit, *args, **kargs):
     global base
     base = conduit.getBase()
-    base.registerInventoryFunction("inventory_dup", InventoryFromDup)
+    #base.registerInventoryFunction("inventory_dup", InventoryFromDup)
     base.registerInventoryFunction("inventory_collector_inventory", InventoryFromInventoryCollector)
-    base.registerBootstrapFunction("bootstrap_dup", BootstrapFromDup)
+    #base.registerBootstrapFunction("bootstrap_dup", BootstrapFromDup)
     base.registerBootstrapFunction("inventory_collector_bootstrap", BootstrapFromInventoryCollector)
 
 # dummy package type for inventory collector
@@ -125,6 +126,49 @@ def BootstrapFromInventoryCollector(base=None, cb=None, *args, **kargs):
             pkg.name = "%s/%s" % (pkg.name, "system(ven_0x1028_dev_0x%04x)" % sysid)
             yield pkg
 
+decorate(traceLog())
+def runInvcol(pkgPath):
+    runInv = 0
+    if not os.path.exists( os.path.join(pkgPath, "out.xml") ):
+        getLog(prefix="verbose").info("invcol output files dont exist, running inventory")
+        runInv = 1
+    else:
+        fd = open("/proc/uptime", "r")
+        line = fd.readline()
+        fd.close()
+        systemUptimeSeconds = float(line.split()[0])
+        statinfo = os.stat(os.path.join(pkgPath, "out.xml"))
+        if systemUptimeSeconds < (time.time() - statinfo.st_mtime):
+            getLog(prefix="verbose").info("invcol output not up-to-date: %s < %s" % (systemUptimeSeconds, (time.time() - statinfo.st_mtime)))
+            runInv = 1
+
+    if runInv:
+        try:
+            os.unlink(os.path.join(pkgPath, "err.xml"))
+        except OSError:
+            pass
+        env = dict(os.environ)
+        env["LD_LIBRARY_PATH"] = os.path.pathsep.join([os.environ.get('LD_LIBRARY_PATH',''), pkgPath])
+        common.loggedCmd( [os.path.join(pkgPath,"invcol"), "-outc=out.xml", "-logc=err.xml"], env=env, cwd=pkgPath, timeout=1200, logger=getLog(), raiseExc=False)
+
+    fd = open(os.path.join(pkgPath, "out.xml"))
+    invXml = fd.read()
+    fd.close()
+
+    try:
+        errXml=""
+        fd = open(os.path.join(pkgPath, "err.xml"))
+        errXml = fd.read()
+        fd.close()
+    except IOError, e:
+        pass
+
+    getLog(prefix="verbose").info("invXml: %s" % invXml)
+
+    return invXml, errXml
+    
+
+decorate(traceLog())
 def InventoryFromInventoryCollector(base=None, cb=None, *args, **kargs):
     if _InventoryFromInventoryCollector.instance is None:
         _InventoryFromInventoryCollector.instance = _InventoryFromInventoryCollector(base=base, cb=cb, *args, **kargs)
@@ -132,7 +176,6 @@ def InventoryFromInventoryCollector(base=None, cb=None, *args, **kargs):
 
 class _InventoryFromInventoryCollector(object):
     instance = None
-    cachedOutput = None
 
     decorate(traceLog())
     def __init__(self, base=None, cb=None, *args, **kargs):
@@ -150,12 +193,10 @@ class _InventoryFromInventoryCollector(object):
 
             try:
                 ft.callCB(cb, who="inventory_collector_inventory", what="running_inventory", details="This may take several minutes...")
-                if not self.cachedOutput:
-                    env = dict(os.environ)
-                    env["LD_LIBRARY_PATH"] = os.path.pathsep.join([os.environ.get('LD_LIBRARY_PATH',''), pkg.path])
-                    self.cachedOutput = common.loggedCmd( os.path.join(pkg.path,"invcol"), returnOutput=True, env=env, cwd=pkg.path, timeout=1200, logger=getLog(), raiseExc=False)
 
-                for pkg in svm.genPackagesFromSvmXml(self.cachedOutput):
+                inventoryXml, errorXml = runInvcol( pkg.path )
+
+                for pkg in svm.genPackagesFromSvmXml(inventoryXml):
                     self.pkgInventory.append(pkg)
             except IOError:
                 pass
@@ -163,6 +204,15 @@ class _InventoryFromInventoryCollector(object):
     def get(self):
         for pkg in self.pkgInventory:
             yield pkg
+
+
+
+
+
+
+
+# NOT USED BELOW HERE
+
 
 decorate(traceLog())
 def InventoryFromDup(base=None, cb=None, *args, **kargs):

@@ -180,7 +180,7 @@ def inventory_hook(conduit, inventory=None, *args, **kargs):
 
 
 decorate(traceLog())
-def __init__(self, base=None, cb=None, *args, **kargs):
+def __UNUSED_FUNCTION_FOR_REFERENCE_ONLY(self, base=None, cb=None, *args, **kargs):
     self.base = base
     self.cb = cb
     self.args = args

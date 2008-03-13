@@ -19,6 +19,7 @@ import commands
 import os
 import stat
 import sys
+import time
 
 # local modules
 import firmwaretools as ft
@@ -33,16 +34,6 @@ import firmware_addon_dell.biosHdr as biosHdr
 
 plugin_type = (plugins.TYPE_INVENTORY)
 requires_api_version = "2.0"
-
-base=None
-decorate(traceLog())
-def config_hook(conduit, *args, **kargs):
-    global base
-    base = conduit.getBase()
-    base.registerInventoryFunction("inventory_dup", InventoryFromDup)
-    base.registerInventoryFunction("inventory_collector_inventory", InventoryFromInventoryCollector)
-    base.registerBootstrapFunction("bootstrap_dup", BootstrapFromDup)
-    base.registerBootstrapFunction("inventory_collector_bootstrap", BootstrapFromInventoryCollector)
 
 # dummy package type for inventory collector
 class INVCOL(package.RepositoryPackage):
@@ -116,17 +107,53 @@ def getDupPIE(pkg):
 DELL_VEN_ID = 0x1028
 
 decorate(traceLog())
-def BootstrapFromInventoryCollector(base=None, cb=None, *args, **kargs):
-    for pkg in InventoryFromInventoryCollector(base=base, cb=cb, *args, **kargs):
-        yield pkg
-        sysid = xmlHelp.getNodeAttribute(pkg.dom, "systemID", "SVMInventory", "System")
-        if sysid:
-            sysid = int(sysid,16)
-            pkg.name = "%s/%s" % (pkg.name, "system(ven_0x1028_dev_0x%04x)" % sysid)
-            yield pkg
+def runInvcol(pkgPath):
+    runInv = 0
+    if not os.path.exists( os.path.join(pkgPath, "out.xml") ):
+        getLog(prefix="verbose.").info("invcol output files dont exist, running inventory")
+        runInv = 1
+    else:
+        fd = open("/proc/uptime", "r")
+        line = fd.readline()
+        fd.close()
+        systemUptimeSeconds = float(line.split()[0])
+        statinfo = os.stat(os.path.join(pkgPath, "out.xml"))
+        if systemUptimeSeconds < (time.time() - statinfo.st_mtime):
+            getLog(prefix="verbose.").info("invcol output not up-to-date: %s < %s" % (systemUptimeSeconds, (time.time() - statinfo.st_mtime)))
+            runInv = 1
+
+    if runInv:
+        try:
+            os.unlink(os.path.join(pkgPath, "err.xml"))
+        except OSError:
+            pass
+        env = dict(os.environ)
+        env["LD_LIBRARY_PATH"] = os.path.pathsep.join([os.environ.get('LD_LIBRARY_PATH',''), pkgPath])
+        common.loggedCmd( [os.path.join(pkgPath,"invcol"), "-outc=out.xml", "-logc=err.xml"], env=env, cwd=pkgPath, timeout=1200, logger=getLog(), raiseExc=False)
+
+    fd = open(os.path.join(pkgPath, "out.xml"))
+    invXml = fd.read()
+    fd.close()
+
+    try:
+        errXml=""
+        fd = open(os.path.join(pkgPath, "err.xml"))
+        errXml = fd.read()
+        fd.close()
+    except IOError, e:
+        pass
+
+    getLog(prefix="verbose.").info("invXml: %s" % invXml)
+
+    return invXml, errXml
+    
+
 
 decorate(traceLog())
-def InventoryFromInventoryCollector(base=None, cb=None, *args, **kargs):
+def inventory_hook(conduit, inventory=None, *args, **kargs):
+    base = conduit.getBase()
+    cb = base.cb
+
     thisSys = "ven_0x%04x_dev_0x%04x" % (DELL_VEN_ID,biosHdr.getSystemId())
     for pkg in base.repo.iterLatestPackages():
         if not isinstance(pkg, INVCOL):
@@ -135,18 +162,31 @@ def InventoryFromInventoryCollector(base=None, cb=None, *args, **kargs):
 
         try:
             ft.callCB(cb, who="inventory_collector_inventory", what="running_inventory", details="This may take several minutes...")
-            env = dict(os.environ)
-            env["LD_LIBRARY_PATH"] = os.path.pathsep.join([os.environ.get('LD_LIBRARY_PATH',''), pkg.path])
-            out = common.loggedCmd( os.path.join(pkg.path,"invcol"), returnOutput=True, env=env, cwd=pkg.path, timeout=1200, logger=getLog(), raiseExc=False)
 
-            for pkg in svm.genPackagesFromSvmXml(out):
-                yield pkg
+            inventoryXml, errorXml = runInvcol( pkg.path )
+
+            for device in svm.genPackagesFromSvmXml(inventoryXml):
+                inventory.addDevice(device)
         except IOError:
             pass
 
 
+
+
+
+
+
+# NOT USED BELOW HERE
+
+
 decorate(traceLog())
-def InventoryFromDup(base=None, cb=None, *args, **kargs):
+def __init__(self, base=None, cb=None, *args, **kargs):
+    self.base = base
+    self.cb = cb
+    self.args = args
+    self.kargs = kargs
+    self.pkgInventory = []
+
     bootstrap = [i.name for i in base.yieldBootstrap()]
     thisSys = "ven_0x%04x_dev_0x%04x" % (DELL_VEN_ID,biosHdr.getSystemId())
     for pkg in base.repo.iterLatestPackages():
@@ -173,37 +213,6 @@ def InventoryFromDup(base=None, cb=None, *args, **kargs):
             out = common.loggedCmd( pie["sInventoryCliBin"] + " " + pie["sInventoryCliArgs"], shell=True, returnOutput=True, cwd=pkg.path, timeout=int(pie["sInventoryCliTimeout"]), logger=getLog(), env=env, raiseExc=False)
 
             for pkg in svm.genPackagesFromSvmXml(out):
-                yield pkg
+                self.pkgInventory.append(pkg)
         except IOError:
             pass
-
-
-
-
-decorate(traceLog())
-def BootstrapFromDup(base=None, cb=None, *args, **kargs):
-    thisSys = "ven_0x%04x_dev_0x%04x" % (DELL_VEN_ID,biosHdr.getSystemId())
-    for pkg in base.repo.iterLatestPackages():
-        if not isinstance(pkg, DUP):
-            getLog(prefix="verbose.").info("Not a DUP.")
-            continue
-
-        if pkg.conf.has_option("package", "limit_system_support"):
-            sys = pkg.conf.get("package", "limit_system_support")
-            if sys != thisSys:
-                getLog(prefix="verbose.").info("System-specific pkg doesnt match this system: %s != %s" % (thisSys, sys))
-                continue
-
-        try:
-            pie = getDupPIE(pkg)
-            ft.callCB(cb, who="dup_inventory", what="running_inventory", details="cmd %s" % pie["sInventoryCliBin"])
-
-            env = dict(os.environ)
-            env["PATH"] = os.path.pathsep.join([os.environ.get('PATH',''), pkg.path])
-            out = common.loggedCmd( pie["sInventoryCliBin"] + " " + pie["sInventoryCliArgs"], shell=True, returnOutput=True, cwd=pkg.path, timeout=int(pie["sInventoryCliTimeout"]), logger=getLog(), env=env, raiseExc=False)
-
-            for pkg in svm.genPackagesFromSvmXml(out):
-                yield pkg
-        except IOError:
-            pass
-

@@ -115,9 +115,9 @@ def genPackagesFromSvmXml(xmlstr):
                 name = pciFullFirmStr % (venId, devId, subvenId, subdevId)
 
         if bus and device and function:
-            bus = int(bus, 16)
-            device = int(device, 16)
-            function = int(function, 16)
+            bus = int(bus, 10)
+            device = int(device, 10)
+            function = int(function, 10)
             otherAttrs["pciDbdf"] = (0, bus, device, function)
             type = package.PciDevice
 

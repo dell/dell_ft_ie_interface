@@ -19,7 +19,7 @@ class TestCase(unittest.TestCase):
         import dell_dup.svm as svm
         expectedResult = [{"name": "pci_firmware(ven_0x1028_dev_0x0015_subven_0x1028_subdev_0x1f03)",
                 "displayname": "Dell PERC 5/i Integrated Controller 1 Firmware",
-                "pciDbdf": (0, 2, 0x14, 0)
+                "pciDbdf": (0, 2, 14, 0)
             },]
         actualResult = []
 
@@ -44,7 +44,7 @@ class TestCase(unittest.TestCase):
         import dell_dup.svm as svm
         expectedResult = [{"name": "pci_firmware(ven_0x1028_dev_0x0015)",
                 "displayname": "Dell PERC 5/i Integrated Controller 1 Firmware",
-                "pciDbdf": (0, 2, 0x14, 0)
+                "pciDbdf": (0, 2, 14, 0)
             },]
         actualResult = []
 
@@ -95,13 +95,13 @@ class TestCase(unittest.TestCase):
         expectedResult = [
                 {"name": "pci_firmware(ven_0x1028_dev_0x0015_subven_0x1028_subdev_0x1f03)",
                 "displayname": "Dell PERC 5/i Integrated Controller 1 Firmware",
-                "pciDbdf": (0, 2, 0x14, 0)},
+                "pciDbdf": (0, 2, 14, 0)},
                 {"name": "pci_firmware(ven_0x1028_dev_0x0016)",
                 "displayname": "Dell PERC 5/i Integrated Controller 2 Firmware",
-                "pciDbdf": (0, 2, 0x15, 0)},
+                "pciDbdf": (0, 2, 15, 0)},
                 {"name": "pci_firmware(ven_0x1028_dev_0x0017)",
                 "displayname": "Dell PERC 5/i Integrated Controller 3 Firmware",
-                "pciDbdf": (0, 2, 0x16, 0)},
+                "pciDbdf": (0, 2, 16, 0)},
             ]
         actualResult = []
 

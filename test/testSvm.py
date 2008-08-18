@@ -16,10 +16,10 @@ class TestCase(unittest.TestCase):
         pass
 
     def testSvm_onePkg(self):
-        import firmware_addon_dell.svm as svm
+        import dell_dup.svm as svm
         expectedResult = [{"name": "pci_firmware(ven_0x1028_dev_0x0015_subven_0x1028_subdev_0x1f03)",
                 "displayname": "Dell PERC 5/i Integrated Controller 1 Firmware",
-                "pciDbdf": (0, 2, 0x14, 0)
+                "pciDbdf": (0, 2, 14, 0)
             },]
         actualResult = []
 
@@ -41,10 +41,10 @@ class TestCase(unittest.TestCase):
                 self.assertEqual(value, getattr(actualResult[i], attr))
 
     def testSvm_pcivendev_only(self):
-        import firmware_addon_dell.svm as svm
+        import dell_dup.svm as svm
         expectedResult = [{"name": "pci_firmware(ven_0x1028_dev_0x0015)",
                 "displayname": "Dell PERC 5/i Integrated Controller 1 Firmware",
-                "pciDbdf": (0, 2, 0x14, 0)
+                "pciDbdf": (0, 2, 14, 0)
             },]
         actualResult = []
 
@@ -67,7 +67,7 @@ class TestCase(unittest.TestCase):
 
 
     def testSvm_no_bdf(self):
-        import firmware_addon_dell.svm as svm
+        import dell_dup.svm as svm
         expectedResult = [{"name": "pci_firmware(ven_0x1028_dev_0x0015)",
                 "displayname": "Dell PERC 5/i Integrated Controller 1 Firmware",
             },]
@@ -91,17 +91,17 @@ class TestCase(unittest.TestCase):
                 self.assertEqual(value, getattr(actualResult[i], attr))
 
     def testSvm_multiPkg(self):
-        import firmware_addon_dell.svm as svm
+        import dell_dup.svm as svm
         expectedResult = [
                 {"name": "pci_firmware(ven_0x1028_dev_0x0015_subven_0x1028_subdev_0x1f03)",
                 "displayname": "Dell PERC 5/i Integrated Controller 1 Firmware",
-                "pciDbdf": (0, 2, 0x14, 0)},
+                "pciDbdf": (0, 2, 14, 0)},
                 {"name": "pci_firmware(ven_0x1028_dev_0x0016)",
                 "displayname": "Dell PERC 5/i Integrated Controller 2 Firmware",
-                "pciDbdf": (0, 2, 0x15, 0)},
+                "pciDbdf": (0, 2, 15, 0)},
                 {"name": "pci_firmware(ven_0x1028_dev_0x0017)",
                 "displayname": "Dell PERC 5/i Integrated Controller 3 Firmware",
-                "pciDbdf": (0, 2, 0x16, 0)},
+                "pciDbdf": (0, 2, 16, 0)},
             ]
         actualResult = []
 
@@ -133,7 +133,7 @@ class TestCase(unittest.TestCase):
 
 
     def testSvm_nonPci(self):
-        import firmware_addon_dell.svm as svm
+        import dell_dup.svm as svm
         expectedResult = [
                 {"name": "pci_firmware(ven_0x1000_dev_0x0060_subven_0x1028_subdev_0x1f0c)",
                 "displayname": u'PERC 6/i Integrated Controller 0 Firmware',

@@ -44,6 +44,8 @@ This firmware-tools plugin will extract Dell DUPs into Firmware-Tools format.
 
 
 %build
+# this line lets us build an RPM directly from a git tarball
+[ -e ./configure ] || ./autogen.sh
 %configure
 make -e %{?_smp_mflags} 
 

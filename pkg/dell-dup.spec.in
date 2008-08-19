@@ -11,6 +11,14 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 %{!?python_sitearch: %define python_sitearch %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib(1)")}
 
+%define python_xml_BR %{nil}
+# Some variable definitions so that we can be compatible between SUSE Build service and Fedora build system
+# SUSE: fedora_version  suse_version rhel_version centos_version sles_version
+# Fedora: fedora dist fc8 fc9
+%if 0%{?suse_version} || 0%{?sles_version}
+    %define python_xml_BR python-xml
+%endif
+
 Name:           %{release_name}
 Version:        %{release_version} 
 Release:        %{rpm_release}%{?dist}
@@ -24,17 +32,11 @@ Source0:        http://linux.dell.com/libsmbios/download/%{name}/%{name}-%{versi
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildArch: noarch
 
-BuildRequires:  python-devel, firmware-tools, firmware-addon-dell
+BuildRequires:  python-devel, firmware-tools, firmware-addon-dell, %{python_xml_BR}
 Requires: firmware-tools >= 0:2.0.0, firmware-addon-dell >= 0:2.0
 
 Provides: dell-bmcflash, dell-lsiflash
 Obsoletes: dell-bmcflash < 0:1.5.0, dell-lsiflash < 0:2.0.6
-
-# sles splits up python stdlib
-%if %(test -e /etc/SuSE-release && echo 1 || echo 0)
-BuildRequires:  python-xml
-Requires:  python-xml
-%endif
 
 %description
 This firmware-tools plugin will extract Dell DUPs into Firmware-Tools format.

@@ -16,21 +16,33 @@
 # SUSE: fedora_version  suse_version rhel_version centos_version sles_version
 # Fedora: fedora dist fc8 fc9
 %if 0%{?suse_version} || 0%{?sles_version}
+    # Suse splits out python-xml into its own RPM, but most others dont
     %define python_xml_BR python-xml
 %endif
 
 Name:           %{release_name}
-Version:        %{release_version} 
+Version:        %{release_version}
 Release:        %{rpm_release}%{?dist}
 Summary:        A firmware-tools plugin to handle converting Dell DUPs to FT format.
 
 Group:          Applications/System
 # License is actually GPL/OSL dual license (GPL Compatible), but rpmlint complains
 License:        GPL style
-URL:            http://linux.dell.com/libsmbios/download/ 
+URL:            http://linux.dell.com/libsmbios/download/
 Source0:        http://linux.dell.com/libsmbios/download/%{name}/%{name}-%{version}/%{name}-%{version}.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+
+# SUSE doesnt have noarch python, so for SUSE, always build arch-dependent
+%if ! 0%{?suse_version}
 BuildArch: noarch
+%endif
+
+# SUSE build has anal directory ownership check. RPM which owns all dirs *must*
+# be installed at buildtime. This means we have to BuildRequire them, even if
+# we dont really need them at build time.
+%if 0%{?suse_version}
+BuildRequires: firmware-tools
+%endif
 
 BuildRequires:  python-devel, firmware-tools, firmware-addon-dell, %{python_xml_BR}
 Requires: firmware-tools >= 0:2.0.0, firmware-addon-dell >= 0:2.0
@@ -48,14 +60,25 @@ This firmware-tools plugin will extract Dell DUPs into Firmware-Tools format.
 %build
 # this line lets us build an RPM directly from a git tarball
 [ -e ./configure ] || ./autogen.sh
+
+# fix problems when buildsystem time is out of sync. ./configure will
+# fail if newly created files are older than the packaged files.
+# this should normally be a no-op on proper buildsystems.
+touch configure
+find . -type f -newer configure -print0 | xargs -r0 touch
+
 %configure
-make -e %{?_smp_mflags} 
+make -e %{?_smp_mflags}
 
 %check
 make -e %{?_smp_mflags} check
 
 %install
+# Fedora Packaging guidelines
 rm -rf $RPM_BUILD_ROOT
+# SUSE Packaging rpmlint
+mkdir $RPM_BUILD_ROOT
+
 make install DESTDIR=%{buildroot} INSTALL="%{__install} -p"
 mkdir -p $RPM_BUILD_ROOT/%{_datadir}/firmware/dell/dup/
 

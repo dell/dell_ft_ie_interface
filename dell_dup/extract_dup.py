@@ -18,9 +18,10 @@ import glob
 import os
 import shutil
 import sys
+import subprocess
 import xml.dom.minidom
 
-import dell_dup
+#import dell_dup
 from firmwaretools.trace_decorator import decorate, traceLog, getLog
 import firmwaretools.plugins as plugins
 import firmware_addon_dell.HelperXml as HelperXml
@@ -34,7 +35,7 @@ except ImportError, e:
     raise plugins.DisablePlugin
 
 # required by the Firmware-Tools plugin API
-__VERSION__ = dell_dup.__VERSION__
+__VERSION__ = "1.0" #TODO: change this to dell_official_dup.__VERSION__ when we get that.
 plugin_type = (plugins.TYPE_CORE,)
 requires_api_version = "2.0"
 # end: api reqs
@@ -51,16 +52,21 @@ decorate(traceLog())
 def extract_doCheck_hook(conduit, *args, **kargs):
     global conf
     conf = checkConf(conduit.getConf(), conduit.getBase().opts)
-    extract_cmd.registerPlugin(genericLinuxDup, __VERSION__)
-    extract_cmd.registerPlugin(inventoryCollector, __VERSION__)
+    extract_cmd.registerPlugin(genericPIE, __VERSION__)
 
 decorate(traceLog())
 def extract_addSubOptions_hook(conduit, *args, **kargs):
-    pass
+    conduit.getOptParser().add_option(
+        "--device-type-xsl", help="Path to the DeviceType.xsl.",
+        action="store", dest="device_type_xsl", default=None)
 
 true_vals = ("1", "true", "yes", "on")
 decorate(traceLog())
 def checkConf(conf, opts):
+    if opts.device_type_xsl is not None:
+        conf.device_type_xsl = os.path.realpath(os.path.expanduser(opts.device_type_xsl))
+    if getattr(conf, "device_type_xsl", None) is None:
+        conf.helper_dat = ""  # <-- the default if no cfg or cmdline
     return conf
 
 #####################
@@ -92,104 +98,32 @@ def getPciDevices(dom=None, deviceNode=None):
         subdev = int(HelperXml.getNodeAttribute(pci, "subDeviceID"),16)
         yield (ven, dev, subven, subdev)
 
-decorate(traceLog())
-def getDupVersion(extractDir):
-    dmaj = dmin = dmtv = 0
-    try:
-        fd = open(os.path.join(extractDir, "build_variables.txt"),"r")
-        while not fd.closed:
-            line = fd.readline()
-            if line == "": fd.close()
-            line = common.chomp(line)
-            if line.startswith("BLD_RPL_MJV="): dmaj = int(line.replace("BLD_RPL_MJV=",""))
-            if line.startswith("BLD_RPL_MNV="): dmin = int(line.replace("BLD_RPL_MNV=",""))
-            if line.startswith("BLD_RPL_MTV="): dmtv = int(line.replace("BLD_RPL_MTV=",""))
-    except IOError:
-        pass
 
-    return dmaj, dmin, dmtv
-
-def compareVersions(i, j):
-    for i, j in zip(i,j):
-        if i < j:
-            return -1
-        elif i > j:
-            return 1
-    return 0
 
 decorate(traceLog())
-def inventoryCollector(statusObj, outputTopdir, logger, *args, **kargs):
-    if not os.path.basename(statusObj.file).startswith("invcol"):
-        raise common.skip, "file doesnt start with 'invcol'"
+def genericPIE(statusObj, outputTopdir, logger, *args, **kargs):
+    common.assertFileExt(statusObj.file, '.pie')
+    
+    packageXml = os.path.join(os.path.dirname(statusObj.file), "package.xml")
+    if not os.path.exists(packageXml):
+        raise common.skip
 
     common.copyToTmp(statusObj)
-    common.doOnce( statusObj, common.dupExtract, statusObj.tmpfile, statusObj.tmpdir, logger )
+    shutil.copyfile( packageXml, os.path.join(statusObj.tmpdir, "package.xml") )
 
-    if not os.path.exists(os.path.join(statusObj.tmpdir, "invcol")):
-        raise common.skip, "No invcol, not an inventory collector."
+    dom = xml.dom.minidom.parse(packageXml)
+    dom.filename = packageXml
 
-    os.symlink("diet_build_variables.txt", os.path.join(statusObj.tmpdir,"build_variables.txt"))
-
-    thisVer = getDupVersion(statusObj.tmpdir)
-    outdir = os.path.join(outputTopdir, "dup", "dell_inventory_collector_%d.%d.%d" % thisVer)
-    shutil.rmtree(outdir, ignore_errors=1)
-    os.makedirs( outdir )
-
-    common.dupExtract(statusObj.file, outdir, logger)
-    shutil.copyfile(conf.license, os.path.join(outdir, os.path.basename(conf.license)))
-
-    common.loggedCmd( ["/sbin/ldconfig", "-n", outdir], cwd=outdir, timeout=60, logger=logger)
-
-    packageIni = ConfigParser.ConfigParser()
-    packageIni.add_section("package")
-
-    common.setIni( packageIni, "package",
-        name = "dell_inventory_collector",
-        safe_name = "dell_inventory_collector",
-        type      = "INVCOL",
-        module    = "dell_dup.dup",
-        version   = ".".join( [str(n) for n in thisVer]),
-        )
-
-    fd = None
-    try:
-        fd = open( os.path.join(outdir, "package.ini"), "w+")
-        packageIni.write( fd )
-    finally:
-        if fd is not None:
-            fd.close()
-
-    return True
-
-
-decorate(traceLog())
-def genericLinuxDup(statusObj, outputTopdir, logger, *args, **kargs):
-    common.assertFileExt(statusObj.file, '.bin')
-    common.copyToTmp(statusObj)
-    common.doOnce( statusObj, common.dupExtract, statusObj.tmpfile, statusObj.tmpdir, logger )
-
-    files = [ f.lower() for f in os.listdir(statusObj.tmpdir) ]
-
-    if not 'package.xml' in files:
-        raise common.skip, "not a dup, no package.xml present"
-
-    if not os.path.exists(os.path.join(statusObj.tmpdir, "PIEConfig.sh")) and not os.path.exists(os.path.join(statusObj.tmpdir, "framework", "PIEConfig.sh")):
-        raise common.skip, "No PIEConfig.sh, cannot use with this DUP framework."
-
-    dom = xml.dom.minidom.parse(os.path.join(statusObj.tmpdir, "package.xml"))
+    subprocess.call( ["unzip", statusObj.tmpfile, "common/payload/*", "-d", statusObj.tmpdir], stdout=file("/dev/null", "w+"), stderr=subprocess.STDOUT )
 
     extracted = False
     for packageIni, outdir in getOutputDirs( dom, statusObj, outputTopdir, logger ):
-        thisVer = getDupVersion(statusObj.tmpdir)
-        existVer = getDupVersion(outdir)
-        # skip if thisVer ties already existing or is older AND existingver valid
-        if existVer != (0,0,0) and compareVersions(existVer, thisVer) > 0:
-            logger.info(" PACKAGE IS OLDER THAN ALREADY EXISTING existing: %s,  this: %s" % (repr(existVer), repr(thisVer)))
-            continue
-
         shutil.rmtree(outdir, ignore_errors=1)
-        os.makedirs( outdir )
-        common.dupExtract(statusObj.file, outdir, logger)
+        try:
+            os.makedirs( os.path.dirname(outdir) )
+        except OSError:
+            pass
+        shutil.copytree( os.path.join(statusObj.tmpdir, "common", "payload"), outdir )
         shutil.copyfile(conf.license, os.path.join(outdir, os.path.basename(conf.license)))
 
         fd = None
@@ -213,6 +147,14 @@ def getOutputDirs(dom, statusObj, outputTopdir, logger):
     vendorVersion = HelperXml.getNodeAttribute(dom, "vendorVersion", "SoftwareComponent").lower()
     sysDepTemplate = "system_ven_0x%04x_dev_0x%04x"
 
+    pobj = subprocess.Popen( ["xsltproc", conf.device_type_xsl, dom.filename], stdout=subprocess.PIPE )
+    (stdout, stderr) = pobj.communicate(None)
+    def validate(letter):
+        if letter.isalnum():
+            return letter 
+        return "_"
+    IEType = "".join([ validate(i) for i in stdout.strip()])
+    
     for devNode in HelperXml.iterNodeElement(dom, "SoftwareComponent", "SupportedDevices", "Device"):
         packageIni = ConfigParser.ConfigParser()
         packageIni.add_section("package")
@@ -227,8 +169,9 @@ def getOutputDirs(dom, statusObj, outputTopdir, logger):
         common.setIni( packageIni, "package",
             name = depName,
             safe_name = depName,
-            type      = "DUP",
-            module    = "dell_dup.dup",
+            type      = "OfficialDUP",
+            module    = "dell_dup_official.dup",
+            ie_type   = IEType,
             displayname = displayName,
             dup_component_id = componentId,
             version        = vendorVersion,
@@ -278,53 +221,4 @@ def yieldIniAndPath(packageIni, outputTopdir, deps, fwFullName, sysDepTemplate, 
 
 
 
-
-# OLD, DEPRECATED STUFF BELOW
-
-supportedPciDevs = [ 1369, 1375, 2608, 3428, 5646, 6315, 6395, 6396, 9181, 9182, 9183, 9294, 9623, 9840, 10269, 12436, 13119, 13514, 13856, 13910 ]
-
-# list of all component ids and name
-DATA = """
- ID 00159 (1): Dell Server System BIOS
- ID 00160 (1): Dell ESM Firmware
-#ID 01369 (0): LSI Logic PERC3/DCL, PERC3/DC, PERC3/QC, PERC3/SC
-#ID 01375 (1): Adaptec PERC3/Di
- ID 02517 (0): Dell PowerVault 220S/221S SES Firmware
-#ID 02608 (1): LSI Logic PERC 4/Di
-#ID 03428 (0): LSI Logic PERC 4/SC, PERC 4/DC
- ID 03967 (1): Dell Backplane Firmware
- ID 04332 (1): Dell Remote Access Controller - ERA/O
- ID 04334 (1): Dell Remote Access Controller - ERA and DRAC III/XT
-#ID 05646 (0): Adaptec CERC SATA1.5/6ch
- ID 05814 (1): Dell BMC Firmware
- ID 05974 (0): Dell Remote Access Controller - DRAC 4/I, Remote Access Controller - DRAC 4/P
-#ID 06315 (0): LSI Logic PERC 4e/DC
-#ID 06395 (1): LSI Logic Perc 4e/Di
-#ID 06396 (1): LSI Logic PERC 4e/Si
- ID 08529 (0): Dell MD1000 Controller Card Firmware
- ID 08735 (0): Dell Remote Access Controller - DRAC 5
-#ID 09181 (0): Dell PERC 5/E Adapter
-#ID 09182 (0): Dell PERC 5/i Integrated
-#ID 09183 (0): Dell PERC 5/i Adapter
-#ID 09294 (0): Dell SAS 5/i Integrated
-#ID 09623 (0): Dell SAS 5/iR Integrated
-#ID 09840 (0): Dell SAS 5/E Adapter
-#ID 10269 (0): Dell SAS 5/iR Adapter
- ID 11204 (0): Dell SAS Backplane Firmware
-#ID 12436 (0): Dell PERC 6/E Adapter
-#ID 13119 (0): Dell SAS 6/iR Adapter
- ID 13375 (0): Fujitsu AL10LX, 3.5", 15K, SAS, 73GB, DU, AL10LX, 3.5", 15K, SAS, 146GB, DU, AL10LX, 3.5", 15K, SAS, 300GB, DU
- ID 13380 (0): Hitachi Viper B, 3.5", 15K, SAS, 73GB, DU, Viper B, 3.5", 15K, SAS, 146GB, DU, Viper B, 3.5", 15K, SAS, 300GB, DU
- ID 13385 (0): Fujitsu AL10SE, 2.5", 10K, SAS, 73GB, DU, AL10SE, 2.5", 10K, SAS, 146GB, DU
-#ID 13514 (0): Dell PERC 6/i Integrated
-#ID 13856 (0): Dell SAS 6/iR Integrated
-#ID 13910 (0): LSI Logic LSI2032
- ID 14610 (0): Hitachi Cobra B, 10K, SAS, 2.5"FF, 73GB, DU, Cobra B, 10K, SAS, 2.5"FF, 146GB, DU
- ID 14612 (0): Fujitsu AL10SX, 2.5", 15K, SAS, 73GB, DU, AL10SX, 2.5", 15K, SAS, 36GB, DU
- ID 15051 (0): Dell iDRAC v1.0
- ID 16109 (0): Seagate HD,146G,SAS,3,10K,2.5,SGT2,FIRE,DU, HD,73G,SAS,3,10K,2.5,SGT2,FIRE,DU
- ID 16111 (0): Seagate Timberland,15K5,SAS3.0,3.5",146GB,SGT3,DU, Timberland,15K5,SAS3.0,3.5",300GB,SGT3,DU, Timberland,15K5,SAS3.0,3.5",73GB,SGT3,DU
- ID 16114 (0): Seagate Timberland T10,10K,SAS3.0,3.5",146GB,SGT3,DU, Timberland T10,10K,SAS3.0,3.5",300GB,SGT3,DU, Timberland T10,10K,SAS3.0,3.5",73GB,SGT3,DU
- ID 16117 (0): Seagate Timberland NS,10K,SAS3.5",400GB,DU
-"""
 

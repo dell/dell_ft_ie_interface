@@ -48,8 +48,7 @@ decorate(traceLog())
 def buildrpm_doCheck_hook(conduit, *args, **kargs):
     global conf
     conf = checkConf_buildrpm(conduit.getConf(), conduit.getBase().opts)
-    br.specMapping["DUP"] = {"spec": conf.delldupspec, "ini_hook": buildrpm_ini_hook}
-    br.specMapping["INVCOL"] = {"spec": conf.dellinvcolspec}
+    br.specMapping["OfficialDUP"] = {"spec": conf.delldupspec, "ini_hook": buildrpm_ini_hook}
 
 shortName = None
 
@@ -57,6 +56,9 @@ decorate(traceLog())
 def buildrpm_addSubOptions_hook(conduit, *args, **kargs):
     global shortName
     shortName =common.ShortName(conduit.getOptParser())
+    conduit.getOptParser().add_option(
+        "--dup_spec", help="Path to the spec file to build official dups.",
+        action="store", dest="delldupspec", default=None)
 
 # this is called by the buildrpm_doCheck_hook and should ensure that all config
 # options have reasonable default values and that config file values are
@@ -64,6 +66,8 @@ def buildrpm_addSubOptions_hook(conduit, *args, **kargs):
 decorate(traceLog())
 def checkConf_buildrpm(conf, opts):
     shortName.check(conf, opts)
+    if opts.delldupspec is not None:
+        conf.delldupspec = os.path.realpath(os.path.expanduser(opts.delldupspec))
     if getattr(conf, "delldupspec", None) is None:
         conf.delldupspec = None
     return conf

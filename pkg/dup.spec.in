@@ -5,12 +5,11 @@
 # disable debug package because of the precompiled binaries.
 %define debug_package %{nil}
 
-
-Summary:   Dell DUP for #displayname#
+Summary:   #displayname# firmware update payload package
 Name:      #rpm_name#
 Epoch:     %{epoch}
 Version:   #version#
-Release:   21
+Release:   1
 Vendor:    Dell
 License:   Proprietary
 Group:     System Environment/Base
@@ -18,26 +17,17 @@ BuildArch: noarch
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-%(id -u)-buildroot/
 Source0:   %{safe_name}-%{version}.tar.bz2
 
-Requires:  firmware-addon-dell >= 0:2.0
-Requires:  firmware-tools >= 0:2.0
-Requires:  dell-dup >= 0:1.0
+Provides: #safe_name##system_provides# = %{epoch}:%{version}-%{release}
+Requires: dell_ie_module(#ie_type#)
 
 %if "#vendor_id#" != "%{nil}"
 Provides: pci_firmware(ven_#vendor_id#_dev_#device_id#_subven_#subvendor_id#_subdev_#subdevice_id#)#system_provides# = %{epoch}:%{version}-%{release}
 %endif
-Provides: #safe_name##system_provides# = %{epoch}:%{version}-%{release}
 
 %description
 This package contains Firmware for #displayname#.
 The Dell version of this firmware is #dell_version#
 The vendor version of this firmware is #vendor_version#
-
-This is an _UNOFFICIAL_ package, not supported by Dell. Do not call Dell
-technical support concerning this package, because you will not get help there.
-Please use the mailing lists for support. firmware-tools-devel@lists.us.dell.com
-would be a good place to start.
-
-If this package is useful to you, feedback is appreciated.
 
 %prep
 %setup -n %{safe_name}_version_%{version}

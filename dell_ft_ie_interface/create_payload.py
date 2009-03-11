@@ -21,7 +21,7 @@ import sys
 import subprocess
 import xml.dom.minidom
 
-#import dell_dup
+import dell_ft_ie_interface
 from firmwaretools.trace_decorator import decorate, traceLog, getLog
 import firmwaretools.plugins as plugins
 import firmware_addon_dell.HelperXml as HelperXml
@@ -35,7 +35,7 @@ except ImportError, e:
     raise plugins.DisablePlugin
 
 # required by the Firmware-Tools plugin API
-__VERSION__ = "1.0" #TODO: change this to dell_official_dup.__VERSION__ when we get that.
+__VERSION__ = dell_ft_ie_interface.__VERSION__
 plugin_type = (plugins.TYPE_CORE,)
 requires_api_version = "2.0"
 # end: api reqs
@@ -170,7 +170,7 @@ def getOutputDirs(dom, statusObj, outputTopdir, logger):
             name = depName,
             safe_name = depName,
             type      = "OfficialDUP",
-            module    = "dell_dup_official.dup",
+            module    = "dell_ft_ie_interface.dup",
             ie_type   = IEType,
             displayname = displayName,
             dup_component_id = componentId,

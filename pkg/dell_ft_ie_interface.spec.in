@@ -4,7 +4,6 @@
 %define minor @RELEASE_MINOR@
 %define sub @RELEASE_SUBLEVEL@
 %define extralevel @RELEASE_RPM_EXTRALEVEL@
-%define release_name dell-dup
 %define release_version %{major}.%{minor}.%{sub}%{extralevel}
 %define rpm_release 1
 
@@ -20,7 +19,7 @@
     %define python_xml_BR python-xml
 %endif
 
-Name:           %{release_name}
+Name:           dell_ft_ie_interface
 Version:        %{release_version}
 Release:        %{rpm_release}%{?dist}
 Summary:        A firmware-tools plugin to handle converting Dell DUPs to FT format.

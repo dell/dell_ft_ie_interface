@@ -4,16 +4,16 @@
 
 ####################################
 # change version here.
-AC_INIT([dell-dup],[1.1.2])
+AC_INIT([dell_ft_ie_interface],[1.0.0])
 
-temp_RELEASE_NAME=dell-dup
+temp_RELEASE_NAME=dell_ft_ie_interface
 temp_RELEASE_MAJOR=1
-temp_RELEASE_MINOR=1
-temp_RELEASE_SUBLEVEL=2
+temp_RELEASE_MINOR=0
+temp_RELEASE_SUBLEVEL=0
 temp_RELEASE_EXTRALEVEL=
 ####################################
 
-AC_PREREQ(2.61)
+AC_PREREQ(2.59)
 AC_CONFIG_AUX_DIR([pkg])
 AM_INIT_AUTOMAKE
 AM_MAINTAINER_MODE
@@ -97,6 +97,7 @@ pkgpythondir=\${pythondir}/dell_dup
 pkgpyexecdir=\${pyexecdir}/dell_dup
 
 # generate files and exit
-AC_CONFIG_FILES([ Makefile pkg/${PACKAGE_NAME}.spec ])
+AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([pkg/dell_ft_ie_interface.spec])
 AC_OUTPUT
 

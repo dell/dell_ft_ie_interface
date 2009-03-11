@@ -17,7 +17,7 @@ import os
 import re
 import shutil
 
-import dell_dup
+import dell_ft_ie_interface
 from firmwaretools.trace_decorator import decorate, traceLog, getLog
 import firmwaretools.plugins as plugins
 import firmware_addon_dell.HelperXml as HelperXml
@@ -29,7 +29,7 @@ except ImportError, e:
     raise plugins.DisablePlugin
 
 # required by the Firmware-Tools plugin API
-__VERSION__ = dell_dup.__VERSION__
+__VERSION__ = dell_ft_ie_interface.__VERSION__
 plugin_type = (plugins.TYPE_CORE,)
 requires_api_version = "2.0"
 # end: api reqs

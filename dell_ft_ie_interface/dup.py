@@ -57,7 +57,7 @@ def textCompareStrategy(ver1, ver2):
         return 1
     return -1
 
-class DUP(package.RepositoryPackage):
+class IEInterface(package.RepositoryPackage):
     def __init__(self, *args, **kargs):
         super(DUP, self).__init__(*args, **kargs)
         self.capabilities['can_downgrade'] = False

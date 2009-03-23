@@ -117,6 +117,8 @@ def inventory_hook(conduit, inventory=None, *args, **kargs):
 
             moduleLog.info("\tGOT INVENTORY: %s" % stdout)
 
+            for device in svm.genPackagesFromSvmXml(stdout):
+                inventory.addDevice(device)
 
 
 

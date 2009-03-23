@@ -45,7 +45,7 @@ moduleVerboseLog = getLog(prefix="verbose.")
 # TODO:
 #   1) create _vars.py and create makefile rule to generate
 #   2) create a module dir variable we can use here instead of hardcoding
-ie_submodule_dir = "./test/ie_test/"
+ie_submodule_dir = "/usr/libexec/dell_dup/"
 
 decorate(traceLog())
 def numericOnlyCompareStrategy(ver1, ver2):
@@ -67,7 +67,7 @@ def textCompareStrategy(ver1, ver2):
 
 class IEInterface(package.RepositoryPackage):
     def __init__(self, *args, **kargs):
-        super(DUP, self).__init__(*args, **kargs)
+        super(IEInterface, self).__init__(*args, **kargs)
         self.capabilities['can_downgrade'] = False
         self.capabilities['can_reflash'] = False
         if self.version.isdigit():

@@ -23,29 +23,29 @@ class TestCase(unittest.TestCase):
                 del(sys.modules[k])
 
     def testRawCompareNumericVersions(self):
-        import dell_ft_ie_interface.dup as dup
-        self.assertEqual(-1, dup.numericOnlyCompareStrategy( "1", "2"))
-        self.assertEqual( 0, dup.numericOnlyCompareStrategy( "1", "1"))
-        self.assertEqual( 1, dup.numericOnlyCompareStrategy( "2", "1"))
+        import dell_ft_ie_interface.ie_interface as ie_interface
+        self.assertEqual(-1, ie_interface.numericOnlyCompareStrategy( "1", "2"))
+        self.assertEqual( 0, ie_interface.numericOnlyCompareStrategy( "1", "1"))
+        self.assertEqual( 1, ie_interface.numericOnlyCompareStrategy( "2", "1"))
 
     def testRawCompareTextVersions(self):
-        import dell_ft_ie_interface.dup as dup
-        self.assertEqual(-1, dup.textCompareStrategy( "1", "2"))
-        self.assertEqual( 0, dup.textCompareStrategy( "1", "1"))
-        self.assertEqual( 1, dup.textCompareStrategy( "2", "1"))
-        self.assertEqual(-1, dup.textCompareStrategy( "a", "b"))
-        self.assertEqual( 0, dup.textCompareStrategy( "a", "a"))
-        self.assertEqual( 1, dup.textCompareStrategy( "b", "a"))
-        self.assertEqual(-1, dup.textCompareStrategy( "522d", "5a2d"))
+        import dell_ft_ie_interface.ie_interface as ie_interface
+        self.assertEqual(-1, ie_interface.textCompareStrategy( "1", "2"))
+        self.assertEqual( 0, ie_interface.textCompareStrategy( "1", "1"))
+        self.assertEqual( 1, ie_interface.textCompareStrategy( "2", "1"))
+        self.assertEqual(-1, ie_interface.textCompareStrategy( "a", "b"))
+        self.assertEqual( 0, ie_interface.textCompareStrategy( "a", "a"))
+        self.assertEqual( 1, ie_interface.textCompareStrategy( "b", "a"))
+        self.assertEqual(-1, ie_interface.textCompareStrategy( "522d", "5a2d"))
 
     def testPkgCompare(self):
-        import dell_ft_ie_interface.dup as dup
-        p = dup.DUP(
+        import dell_ft_ie_interface.ie_interface as ie_interface
+        p = ie_interface.IEInterface(
             name = "testpack_different",
             version = "522d",
             displayname = "fake"
             )
-        q = dup.DUP(
+        q = ie_interface.IEInterface(
             name = "testpack_different",
             version = "5a2d",
             displayname = "fake"

@@ -93,8 +93,8 @@ echo "PACKAGE_VERSION='$PACKAGE_VERSION'" >> version
 echo "PACKAGE_STRING='$PACKAGE_STRING'" >> version
 
 # firmware-tools oddity: package name cannot contain '-', so we have to fix it
-pkgpythondir=\${pythondir}/dell_dup
-pkgpyexecdir=\${pyexecdir}/dell_dup
+pkgpythondir=\${pythondir}/dell_ft_ie_interface
+pkgpyexecdir=\${pyexecdir}/dell_ft_ie_interface
 
 # generate files and exit
 AC_CONFIG_FILES([Makefile])

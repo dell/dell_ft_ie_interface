@@ -10,7 +10,7 @@ dist_pkgdata_DATA = pkg/update-payload.spec.in
 
 pkgpython_PYTHON = \
 	dell_ft_ie_interface/buildrpm_plugin.py	\
-	dell_ft_ie_interface/dup.py	\
+	dell_ft_ie_interface/ie_interface.py	\
 	dell_ft_ie_interface/create_payload.py	\
 	dell_ft_ie_interface/__init__.py	\
 	dell_ft_ie_interface/svm.py

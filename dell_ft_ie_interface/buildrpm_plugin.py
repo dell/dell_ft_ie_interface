@@ -48,7 +48,7 @@ decorate(traceLog())
 def buildrpm_doCheck_hook(conduit, *args, **kargs):
     global conf
     conf = checkConf_buildrpm(conduit.getConf(), conduit.getBase().opts)
-    br.specMapping["OfficialDUP"] = {"spec": conf.delldupspec, "ini_hook": buildrpm_ini_hook}
+    br.specMapping["IEInterface"] = {"spec": conf.delldupspec, "ini_hook": buildrpm_ini_hook}
 
 shortName = None
 

@@ -1,0 +1,5 @@
+<SVMInventory lang="en">
+<Device vendorID="1028" deviceID="0013" subDeviceID="016D" subVendorID="1028" bus="2" device="14" function="0" display="DELL PERC 4e/Di RAID Controller">
+<Application componentType="FRMW" version="5A2D" display="DELL PERC 4e/Di RAID Controller Firmware"/>
+</Device>
+</SVMInventory>

@@ -1,0 +1,35 @@
+<PIEConfig>
+	<Runtime>
+		<OperatingSystem>lx</OperatingSystem>
+	</Runtime>
+	<RebootRequired>1</RebootRequired>
+	<Plugins>
+		<Plugin type="0" description="Inventory" timeout="300">
+			<Startfile>ttyhist.sh</Startfile>
+			<CliToStdout>
+				<Command>ttyhist.sh</Command>
+			</CliToStdout>
+			<CliToFile>
+				<Command>ttyhist.sh inv.xml</Command>
+				<Output>inv.xml</Output>
+			</CliToFile>
+		</Plugin>
+		<Plugin type="1" description="Execution" timeout="600">
+			<Startfile>LSIPIE.sh</Startfile>
+			<CliToStdout>
+				<Command>LSIPIE.sh -u</Command>
+			</CliToStdout>
+			<CliToFile>
+				<Command>LSIPIE.sh -u update.xml</Command>
+				<Output>update.xml</Output>
+			</CliToFile>
+			<CliforceToStdout>
+				<Command>LSIPIE.sh -u </Command>
+			</CliforceToStdout>
+			<CliforceToFile>
+				<Command>LSIPIE.sh -u update.xml</Command>
+				<Output>update.xml</Output>
+			</CliforceToFile>
+		</Plugin>
+	</Plugins>
+</PIEConfig>

@@ -1,27 +1,35 @@
 # vim:tw=0:ts=4:sw=4:et
-
 %define major @RELEASE_MAJOR@
 %define minor @RELEASE_MINOR@
-%define sub @RELEASE_SUBLEVEL@
-%define extralevel @RELEASE_RPM_EXTRALEVEL@
-%define release_version %{major}.%{minor}.%{sub}%{extralevel}
-%define rpm_release 1
+%define micro @RELEASE_MICRO@
+%define extra @RELEASE_RPM_EXTRA@
+%define release_version %{major}.%{minor}.%{micro}%{extra}
 
-%{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%{!?python_sitearch: %define python_sitearch %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib(1)")}
+# required by suse build system
+# norootforbuild
+
+%define run_unit_tests 1
+%{?_without_unit_tests: %define run_unit_tests 0}
+%{?_with_unit_tests:    %define run_unit_tests 1}
 
 %define python_xml_BR %{nil}
 # Some variable definitions so that we can be compatible between SUSE Build service and Fedora build system
 # SUSE: fedora_version  suse_version rhel_version centos_version sles_version
 # Fedora: fedora dist fc8 fc9
 %if 0%{?suse_version} || 0%{?sles_version}
-    # Suse splits out python-xml into its own RPM, but most others dont
     %define python_xml_BR python-xml
 %endif
 
+# per fedora python packaging guidelines
+%{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
+
+# no debuginfo package, as there are no compiled binaries.
+%define debug_package %{nil}
+
+
 Name:           dell_ft_ie_interface
 Version:        %{release_version}
-Release:        %{rpm_release}%{?dist}
+Release:        1%{?dist}
 Summary:        A firmware-tools plugin to handle converting Dell DUPs to FT format.
 
 Group:          Applications/System
@@ -36,21 +44,11 @@ BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildArch: noarch
 %endif
 
-# SUSE build has anal directory ownership check. RPM which owns all dirs *must*
-# be installed at buildtime. This means we have to BuildRequire them, even if
-# we dont really need them at build time.
-%if 0%{?suse_version}
-BuildRequires: firmware-tools
-%endif
-
 BuildRequires:  python-devel, firmware-tools, firmware-addon-dell, %{python_xml_BR}
 Requires: firmware-tools >= 0:2.0.0, firmware-addon-dell >= 0:2.0
 
-Provides: dell-bmcflash, dell-lsiflash
-Obsoletes: dell-bmcflash < 0:1.5.0, dell-lsiflash < 0:2.0.6
-
 %description
-This firmware-tools plugin will extract Dell DUPs into Firmware-Tools format.
+make this a better description eventually
 
 %prep
 %setup -q
@@ -58,7 +56,12 @@ This firmware-tools plugin will extract Dell DUPs into Firmware-Tools format.
 
 %build
 # this line lets us build an RPM directly from a git tarball
-[ -e ./configure ] || ./autogen.sh
+[ -e ./configure ] || \
+    RELEASE_MAJOR=%{major}  \
+    RELEASE_MINOR=%{minor}  \
+    RELEASE_MICRO=%{micro}  \
+    RELEASE_EXTRA=%{extra}  \
+    ./autogen.sh --no-configure
 
 # fix problems when buildsystem time is out of sync. ./configure will
 # fail if newly created files are older than the packaged files.

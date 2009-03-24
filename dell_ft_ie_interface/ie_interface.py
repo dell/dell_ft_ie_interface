@@ -70,12 +70,20 @@ class IEInterface(package.RepositoryPackage):
         super(IEInterface, self).__init__(*args, **kargs)
         self.capabilities['can_downgrade'] = False
         self.capabilities['can_reflash'] = False
+        self.installFunction = self.pkgInstall
         if self.version.isdigit():
             self.compareStrategy = numericOnlyCompareStrategy
         elif "." in self.version:
             self.compareStrategy = package.defaultCompareStrategy
         else:
             self.compareStrategy = textCompareStrategy
+
+    decorate(traceLog())
+    def pkgInstall(self):
+        moduleLog.info("hey, we are supposed to be installing now... :)")
+        #self.status = "failed"
+        #self.status = "success"
+        #self.status = "warm_reboot_needed"
 
 
 DELL_VEN_ID = 0x1028

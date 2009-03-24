@@ -34,6 +34,7 @@ import svm
 import firmware_addon_dell.extract_common as common
 import firmware_addon_dell.HelperXml as xmlHelp
 import firmware_addon_dell.biosHdr as biosHdr
+import dell_ft_ie_interface
 
 plugin_type = (plugins.TYPE_INVENTORY)
 requires_api_version = "2.0"
@@ -45,7 +46,7 @@ moduleVerboseLog = getLog(prefix="verbose.")
 # TODO:
 #   1) create _vars.py and create makefile rule to generate
 #   2) create a module dir variable we can use here instead of hardcoding
-ie_submodule_dir = "/usr/libexec/dell_dup/"
+ie_submodule_dir = dell_ft_ie_interface.PKGLIBEXECDIR
 
 decorate(traceLog())
 def numericOnlyCompareStrategy(ver1, ver2):

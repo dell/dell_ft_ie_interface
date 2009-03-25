@@ -82,10 +82,12 @@ class IEInterface(package.RepositoryPackage):
             moduleLog.info("\ttext")
             self.compareStrategy = textCompareStrategy
 
-        self.pieconffile = os.path.join(ie_submodule_dir, self.conf.get("package", "ie_type"), "PIEConfig.xml")
-        moduleLog.info("loading xml from: %s" % self.pieconffile)
-        self.pieconfigdom = xml.dom.minidom.parse(self.pieconffile)
-        moduleLog.info("loaded.")
+        # test harness sets this to None. No real use has this set to None
+        if self.conf is not None:
+            self.pieconffile = os.path.join(ie_submodule_dir, self.conf.get("package", "ie_type"), "PIEConfig.xml")
+            moduleLog.info("loading xml from: %s" % self.pieconffile)
+            self.pieconfigdom = xml.dom.minidom.parse(self.pieconffile)
+            moduleLog.info("loaded.")
 
     decorate(traceLog())
     def install(self):

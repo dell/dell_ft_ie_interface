@@ -43,12 +43,14 @@ class TestCase(unittest.TestCase):
         p = ie_interface.IEInterface(
             name = "testpack_different",
             version = "522d",
-            displayname = "fake"
+            displayname = "fake",
+            conf=None,
             )
         q = ie_interface.IEInterface(
             name = "testpack_different",
             version = "5a2d",
-            displayname = "fake"
+            displayname = "fake",
+            conf=None,
             )
         self.assertEqual(-1, p.compareVersion(q))
         self.assertEqual( 0, p.compareVersion(p))

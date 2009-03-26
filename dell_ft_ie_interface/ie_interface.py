@@ -32,6 +32,7 @@ import firmwaretools.plugins as plugins
 import firmwaretools.package as package
 from firmwaretools.trace_decorator import decorate, traceLog, getLog
 import firmwaretools.pycompat as pycompat
+import firmwaretools.package
 
 import svm
 import firmware_addon_dell.extract_common as common
@@ -74,31 +75,29 @@ class IEInterface(package.RepositoryPackage):
         super(IEInterface, self).__init__(*args, **kargs)
         self.capabilities['can_downgrade'] = True
         self.capabilities['can_reflash'] = True
-        moduleLog.info("Setting compare function")
+        moduleVerboseLog.debug("Setting compare function")
         if self.version.isdigit():
-            moduleLog.info("\tnumericOnly")
+            moduleVerboseLog.debug("\tnumericOnly")
             self.compareStrategy = numericOnlyCompareStrategy
         elif "." in self.version:
-            moduleLog.info("\tdefault")
+            moduleVerboseLog.debug("\tdefault")
             self.compareStrategy = package.defaultCompareStrategy
         else:
-            moduleLog.info("\ttext")
+            moduleVerboseLog.debug("\ttext")
             self.compareStrategy = textCompareStrategy
 
         # test harness sets this to None. No real use has this set to None
         if self.conf is not None:
             self.ie_module_path = os.path.join(ie_submodule_dir, self.conf.get("package", "ie_type"))
             self.pieconffile = os.path.join(ie_submodule_dir, self.conf.get("package", "ie_type"), "PIEConfig.xml")
-            moduleLog.info("loading xml from: %s" % self.pieconffile)
+            moduleVerboseLog.info("loading xml from: %s" % self.pieconffile)
             self.pieconfigdom = xml.dom.minidom.parse(self.pieconffile)
-            moduleLog.info("loaded.")
+            moduleVerboseLog.info("loaded.")
 
     decorate(traceLog())
     def install(self):
         self.status = "in_progress"
-        moduleLog.info("hey, we are supposed to be installing now... :)")
-        #self.status = "failed"
-        #self.status = "warm_reboot_needed"
+        moduleVerboseLog.info("hey, we are supposed to be installing now... :)")
 
         tempdir = tempfile.mkdtemp(prefix="firmware_install")
         try:
@@ -107,31 +106,43 @@ class IEInterface(package.RepositoryPackage):
                 shutil.copy(fname, os.path.join(tempdir, "ie"))
 
             stdout = runCmdFromPIEConfig(self.pieconfigdom, "Execution", "CliforceToStdout", os.path.join(tempdir, "ie"))
-            # TODO: parse stdout to see if it succeeded or failed (its xml, yay! <-- (sarcasm))
-            self.status = "success"
+
+            svmexecution = xml.dom.minidom.parseString(stdout)
+            spstatus = xmlHelp.getNodeElement(svmexecution, "SVMExecution", "SPStatus")
+            res = xmlHelp.getNodeAttribute(spstatus, "result")
+
+            self.status = "failed"
+            if res.lower() == "true":
+                self.status = "success"
+
+            try:
+                message = xmlHelp.getNodeText(spstatus, "Message").strip()
+                self.status = "custom_msg_%s" % self.name
+                firmwaretools.package.packageStatusEnum[ self.status ] = message
+            except Exception:
+                pass
 
         finally:
             shutil.rmtree(tempdir)
 
-        return
 
 def runCmdFromPIEConfig(dom, which, cmd, path):
     updElem = xmlHelp.getNodeElement(dom, "PIEConfig", "Plugins", ("Plugin", {"description": which}))
     timeout = xmlHelp.getNodeAttribute(updElem, "timeout")
-    invCmd = xmlHelp.getNodeText(updElem, cmd, "Command")
+    cmdToRun = xmlHelp.getNodeText(updElem, cmd, "Command")
 
-    moduleLog.info("\tPlugin command is %s" % invCmd)
-    moduleLog.info("\tPlugin timeout is %s" % timeout)
+    moduleVerboseLog.info("\tPlugin command is %s" % cmdToRun)
+    moduleVerboseLog.info("\tPlugin timeout is %s" % timeout)
 
-    subproc = invCmd.split(" ")
+    subproc = cmdToRun.strip().split(" ")
     subproc[0] = os.path.realpath(os.path.join(path, subproc[0]))
-    moduleLog.info("\tRunning plugin: %s", subproc)
+    moduleVerboseLog.info("\tRunning plugin: %s", subproc)
 
     pobj = subprocess.Popen( subproc, cwd=path, stdout=subprocess.PIPE )
     (stdout, stderr) = pobj.communicate(None)
     # TODO: need to implement timeout (little bit harder...)
 
-    moduleLog.info("output from the cmd was: \n%s" % stdout)
+    moduleVerboseLog.info("output from the cmd was: \n%s" % stdout)
     return stdout
 
 
@@ -142,7 +153,7 @@ def inventory_hook(conduit, inventory=None, *args, **kargs):
     base = conduit.getBase()
     cb = base.cb
 
-    moduleLog.info("not verbose --> INFO: hi there")
+    moduleVerboseLog.info("not verbose --> INFO: hi there")
     moduleVerboseLog.info("verobse INFO: hi there")
     moduleVerboseLog.debug("verobse DEBUG: hi there")
 
@@ -150,18 +161,18 @@ def inventory_hook(conduit, inventory=None, *args, **kargs):
     # TODO: need to cache results.
     for (path, dirs, files) in pycompat.walkPath(ie_submodule_dir):
         if "PIEConfig.xml" in files:
-            moduleLog.info("Running IE Submodule for %s" % path)
+            moduleVerboseLog.info("Running IE Submodule for %s" % path)
             try:
                 pieconfigdom = xml.dom.minidom.parse(os.path.join(path,"PIEConfig.xml"))
             except (xml.parsers.expat.ExpatError,), e:
-                moduleLog.info("\tcould not parse module PIEConfig.xml, disabling module.")
+                moduleVerboseLog.info("\tcould not parse module PIEConfig.xml, disabling module.")
                 continue
 
             stdout = runCmdFromPIEConfig(pieconfigdom, "Inventory", "CliToStdout", path)
 
             for device in svm.genPackagesFromSvmXml(stdout):
                 inventory.addDevice(device)
-                moduleLog.info("Added DEVICE: %s" % device.name)
+                moduleVerboseLog.info("Added DEVICE: %s" % device.name)
 
 
 

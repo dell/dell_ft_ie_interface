@@ -32,7 +32,6 @@ import firmwaretools.plugins as plugins
 import firmwaretools.package as package
 from firmwaretools.trace_decorator import decorate, traceLog, getLog
 import firmwaretools.pycompat as pycompat
-import firmwaretools.package
 
 import svm
 import firmware_addon_dell.extract_common as common
@@ -51,6 +50,8 @@ moduleVerboseLog = getLog(prefix="verbose.")
 #   1) create _vars.py and create makefile rule to generate
 #   2) create a module dir variable we can use here instead of hardcoding
 ie_submodule_dir = dell_ft_ie_interface.PKGLIBEXECDIR
+
+class ExecutionError(package.InstallError,): pass
 
 decorate(traceLog())
 def numericOnlyCompareStrategy(ver1, ver2):
@@ -115,12 +116,16 @@ class IEInterface(package.RepositoryPackage):
             if res.lower() == "true":
                 self.status = "success"
 
+            message="Firmware update failed."
             try:
                 message = xmlHelp.getNodeText(spstatus, "Message").strip()
                 self.status = "custom_msg_%s" % self.name
-                firmwaretools.package.packageStatusEnum[ self.status ] = message
+                package.packageStatusEnum[ self.status ] = message
             except Exception:
                 pass
+
+            if res.lower() != "true":
+                raise ExecutionError(message)
 
         finally:
             shutil.rmtree(tempdir)

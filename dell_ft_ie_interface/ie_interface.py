@@ -16,10 +16,13 @@ from __future__ import generators
 
 # import arranged alphabetically
 import commands
+import glob
 import os
+import shutil
 import stat
 import subprocess
 import sys
+import tempfile
 import time
 import xml.dom.minidom
 
@@ -84,6 +87,7 @@ class IEInterface(package.RepositoryPackage):
 
         # test harness sets this to None. No real use has this set to None
         if self.conf is not None:
+            self.ie_module_path = os.path.join(ie_submodule_dir, self.conf.get("package", "ie_type"))
             self.pieconffile = os.path.join(ie_submodule_dir, self.conf.get("package", "ie_type"), "PIEConfig.xml")
             moduleLog.info("loading xml from: %s" % self.pieconffile)
             self.pieconfigdom = xml.dom.minidom.parse(self.pieconffile)
@@ -96,27 +100,39 @@ class IEInterface(package.RepositoryPackage):
         #self.status = "failed"
         #self.status = "warm_reboot_needed"
 
-        # TODO: the following code is duplicated and should be pushed into its own function
-        updElem = xmlHelp.getNodeElement(self.pieconfigdom, "PIEConfig", "Plugins", ("Plugin", {"description":"Execution"}))
-        timeout = xmlHelp.getNodeAttribute(updElem, "timeout")
-        invCmd = xmlHelp.getNodeText(updElem, "CliforceToStdout", "Command")
+        tempdir = tempfile.mkdtemp(prefix="firmware_install")
+        try:
+            shutil.copytree(self.ie_module_path, os.path.join(tempdir, "ie"))
+            for fname in glob.glob(os.path.join(self.path, "*")):
+                shutil.copy(fname, os.path.join(tempdir, "ie"))
 
-        moduleLog.info("\tPlugin command is %s" % invCmd)
-        moduleLog.info("\tPlugin timeout is %s" % timeout)
+            stdout = runCmdFromPIEConfig(self.pieconfigdom, "Execution", "CliforceToStdout", os.path.join(tempdir, "ie"))
+            # TODO: parse stdout to see if it succeeded or failed (its xml, yay! <-- (sarcasm))
+            self.status = "success"
 
-        subproc = invCmd.split(" ")
-        ie_module_path = os.path.join(ie_submodule_dir, self.conf.get("package", "ie_type"))
-        subproc[0] = os.path.realpath(os.path.join(ie_module_path, subproc[0]))
-        moduleLog.info("\tRunning plugin: %s", subproc)
+        finally:
+            shutil.rmtree(tempdir)
 
-        pobj = subprocess.Popen( subproc, cwd=ie_module_path, stdout=subprocess.PIPE )
-        (stdout, stderr) = pobj.communicate(None)
-        # TODO: need to implement timeout (little bit harder...)
+        return
 
-        # TODO: parse stdout to see if it succeeded or failed (its xml, yay! <-- (sarcasm))
-        self.status = "success"
+def runCmdFromPIEConfig(dom, which, cmd, path):
+    updElem = xmlHelp.getNodeElement(dom, "PIEConfig", "Plugins", ("Plugin", {"description": which}))
+    timeout = xmlHelp.getNodeAttribute(updElem, "timeout")
+    invCmd = xmlHelp.getNodeText(updElem, cmd, "Command")
 
-        moduleLog.info("output from the execution module was: \n%s" % stdout)
+    moduleLog.info("\tPlugin command is %s" % invCmd)
+    moduleLog.info("\tPlugin timeout is %s" % timeout)
+
+    subproc = invCmd.split(" ")
+    subproc[0] = os.path.realpath(os.path.join(path, subproc[0]))
+    moduleLog.info("\tRunning plugin: %s", subproc)
+
+    pobj = subprocess.Popen( subproc, cwd=path, stdout=subprocess.PIPE )
+    (stdout, stderr) = pobj.communicate(None)
+    # TODO: need to implement timeout (little bit harder...)
+
+    moduleLog.info("output from the cmd was: \n%s" % stdout)
+    return stdout
 
 
 DELL_VEN_ID = 0x1028
@@ -141,22 +157,7 @@ def inventory_hook(conduit, inventory=None, *args, **kargs):
                 moduleLog.info("\tcould not parse module PIEConfig.xml, disabling module.")
                 continue
 
-            invElem = xmlHelp.getNodeElement(pieconfigdom, "PIEConfig", "Plugins", ("Plugin", {"description":"Inventory"}))
-            timeout = xmlHelp.getNodeAttribute(invElem, "timeout")
-            invCmd = xmlHelp.getNodeText(invElem, "CliToStdout", "Command")
-
-            moduleLog.info("\tPlugin command is %s" % invCmd)
-            moduleLog.info("\tPlugin timeout is %s" % timeout)
-
-            subproc = invCmd.split(" ")
-            subproc[0] = os.path.realpath(os.path.join(path, subproc[0]))
-            moduleLog.info("\tRunning plugin: %s", subproc)
-
-            pobj = subprocess.Popen( subproc, cwd=path, stdout=subprocess.PIPE )
-            (stdout, stderr) = pobj.communicate(None)
-            # TODO: need to implement timeout (little bit harder...)
-
-            moduleLog.info("\tGOT INVENTORY: %s" % stdout)
+            stdout = runCmdFromPIEConfig(pieconfigdom, "Inventory", "CliToStdout", path)
 
             for device in svm.genPackagesFromSvmXml(stdout):
                 inventory.addDevice(device)

@@ -95,7 +95,6 @@ rm -rf $RPM_BUILD_ROOT
 %{python_sitelib}/*
 %{_datadir}/firmware/dell/dup/
 %config(noreplace) %{_sysconfdir}/firmware/firmware.d/*.conf
-%{_datadir}/firmware-tools/*
 
 
 %changelog

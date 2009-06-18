@@ -101,6 +101,7 @@ class IEInterface(package.RepositoryPackage):
         moduleVerboseLog.info("hey, we are supposed to be installing now... :)")
 
         tempdir = tempfile.mkdtemp(prefix="firmware_install")
+        #FIXME, copy payload into "payload" dir if pieconfig.xml says so
         try:
             shutil.copytree(self.ie_module_path, os.path.join(tempdir, "ie"))
             for fname in glob.glob(os.path.join(self.path, "*")):
@@ -166,6 +167,8 @@ def inventory_hook(conduit, inventory=None, *args, **kargs):
     # TODO: need to cache results.
     for (path, dirs, files) in pycompat.walkPath(ie_submodule_dir):
         if "PIEConfig.xml" in files:
+            # FIXME first check supported systemlist
+            # ex: 10G iDRAC IE will report present on 8G machine, why????
             moduleVerboseLog.info("Running IE Submodule for %s" % path)
             try:
                 pieconfigdom = xml.dom.minidom.parse(os.path.join(path,"PIEConfig.xml"))

@@ -20,7 +20,10 @@ import glob
 import os
 import shutil
 import stat
-import subprocess
+try:
+    import subprocess
+except ImportError:
+    import firmwaretools.compat_subprocess as subprocess
 import sys
 import tempfile
 import time

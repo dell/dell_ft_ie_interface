@@ -104,11 +104,17 @@ class IEInterface(package.RepositoryPackage):
         moduleVerboseLog.info("hey, we are supposed to be installing now... :)")
 
         tempdir = tempfile.mkdtemp(prefix="firmware_install")
-        #FIXME, copy payload into "payload" dir if pieconfig.xml says so
         try:
             shutil.copytree(self.ie_module_path, os.path.join(tempdir, "ie"))
+            if os.path.exists(os.path.join(tempdir, "ie", "donotmovepayload")):
+                payloadDest = os.path.join(tempdir, "ie", "payload")
+            else:
+                payloadDest = os.path.join(tempdir, "ie")
             for fname in glob.glob(os.path.join(self.path, "*")):
-                shutil.copy(fname, os.path.join(tempdir, "ie"))
+                if os.path.isdir(fname):
+                    shutil.copytree(fname, os.path.join(payloadDest, os.path.basename(fname)))
+                else:
+                    shutil.copy(fname, payloadDest)
 
             stdout = runCmdFromPIEConfig(self.pieconfigdom, "Execution", "CliforceToStdout", os.path.join(tempdir, "ie"))
 
@@ -170,14 +176,20 @@ def inventory_hook(conduit, inventory=None, *args, **kargs):
     # TODO: need to cache results.
     for (path, dirs, files) in pycompat.walkPath(ie_submodule_dir):
         if "PIEConfig.xml" in files:
-            # FIXME first check supported systemlist
-            # ex: 10G iDRAC IE will report present on 8G machine, why????
             moduleVerboseLog.info("Running IE Submodule for %s" % path)
             try:
                 pieconfigdom = xml.dom.minidom.parse(os.path.join(path,"PIEConfig.xml"))
             except (xml.parsers.expat.ExpatError,), e:
                 moduleVerboseLog.info("\tcould not parse module PIEConfig.xml, disabling module.")
                 continue
+            
+            venId, sysId = base.getSystemId()
+            supportedSysIds = []
+            for modelNode in xmlHelp.iterNodeElement(pieconfigdom, "PIEConfig", "Model" ):
+                supportedSysIds.append(int(xmlHelp.getNodeAttribute(modelNode, "systemID"), 16))
+            if len(supportedSysIds) >= 0 and sysId not in supportedSysIds:
+                moduleVerboseLog.info("\tModule not for this system, disabling module.")
+                continue                
 
             stdout = runCmdFromPIEConfig(pieconfigdom, "Inventory", "CliToStdout", path)
 

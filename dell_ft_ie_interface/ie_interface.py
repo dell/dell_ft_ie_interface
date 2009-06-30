@@ -120,6 +120,13 @@ class IEInterface(package.RepositoryPackage):
 
             svmexecution = xml.dom.minidom.parseString(stdout)
             spstatus = xmlHelp.getNodeElement(svmexecution, "SVMExecution", "SPStatus")
+            if not spstatus:
+                spstatus = xmlHelp.getNodeElement(svmexecution, "SVMExecution", "Device", "Application", "SPStatus")
+            if not spstatus:
+                message="Could not determine status"
+                self.status = "failed"
+                raise ExecutionError(message)
+                
             res = xmlHelp.getNodeAttribute(spstatus, "result")
 
             self.status = "failed"
@@ -185,9 +192,9 @@ def inventory_hook(conduit, inventory=None, *args, **kargs):
             
             venId, sysId = base.getSystemId()
             supportedSysIds = []
-            for modelNode in xmlHelp.iterNodeElement(pieconfigdom, "PIEConfig", "Model" ):
+            for modelNode in xmlHelp.iterNodeElement(pieconfigdom, "PIEConfig", "SupportedSystems", "Brand", "Model" ):
                 supportedSysIds.append(int(xmlHelp.getNodeAttribute(modelNode, "systemID"), 16))
-            if len(supportedSysIds) >= 0 and sysId not in supportedSysIds:
+            if len(supportedSysIds) > 0 and sysId not in supportedSysIds:
                 moduleVerboseLog.info("\tModule not for this system, disabling module.")
                 continue                
 

@@ -48,6 +48,7 @@ requires_api_version = "2.0"
 import logging
 moduleLog = getLog()
 moduleVerboseLog = getLog(prefix="verbose.")
+moduleUpdateLog = getLog(prefix="ftupdates.")
 
 # TODO:
 #   1) create _vars.py and create makefile rule to generate
@@ -102,6 +103,26 @@ class IEInterface(package.RepositoryPackage):
     def install(self):
         self.status = "in_progress"
         moduleVerboseLog.info("hey, we are supposed to be installing now... :)")
+        moduleUpdateLog.debug("Attempting Firmware Update")
+        try:
+            user = os.environ['USER']
+            moduleUpdateLog.debug("Attempted by user: %s" % user)
+        except KeyError:
+            pass
+        try:
+            user = os.environ['SUDO_USER']
+            moduleUpdateLog.debug("Attempted by sudo user: %s" % user)
+        except KeyError:
+            pass        
+        moduleUpdateLog.debug("Package name: %s" % self.name)
+        moduleUpdateLog.debug("Package display name: %s" % str(self))
+        moduleUpdateLog.debug("Package version: %s" % self.version)
+        moduleUpdateLog.debug("Devices:")
+        for device in self.deviceList:
+            moduleUpdateLog.debug("Device name: %s" % device.name)
+            moduleUpdateLog.debug("Device display name: %s" % str(device))
+            moduleUpdateLog.debug("Device version: %s" % device.version)
+            
 
         tempdir = tempfile.mkdtemp(prefix="firmware_install")
         try:
@@ -145,6 +166,7 @@ class IEInterface(package.RepositoryPackage):
                 raise ExecutionError(message)
 
         finally:
+            moduleUpdateLog.debug("Update result: %s" % self.getStatusStr())
             shutil.rmtree(tempdir)
 
 

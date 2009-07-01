@@ -12,12 +12,12 @@
 %{?_without_unit_tests: %define run_unit_tests 0}
 %{?_with_unit_tests:    %define run_unit_tests 1}
 
-%define python_xml_BR %{nil}
+%define python_xml %{nil}
 # Some variable definitions so that we can be compatible between SUSE Build service and Fedora build system
 # SUSE: fedora_version  suse_version rhel_version centos_version sles_version
 # Fedora: fedora dist fc8 fc9
 %if 0%{?suse_version} || 0%{?sles_version}
-    %define python_xml_BR python-xml
+    %define python_xml python-xml
 %endif
 
 # per fedora python packaging guidelines
@@ -44,8 +44,8 @@ BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildArch: noarch
 %endif
 
-BuildRequires:  python-devel, firmware-tools, firmware-addon-dell, %{python_xml_BR}
-Requires: firmware-tools >= 0:2.0.0, firmware-addon-dell >= 0:2.0
+BuildRequires:  python-devel, firmware-tools, firmware-addon-dell, %{python_xml}
+Requires: firmware-tools >= 0:2.0.0, firmware-addon-dell >= 0:2.0, %{python_xml}
 Requires: dell_ie_bios dell_ie_bmc dell_ie_bp dell_ie_imc dell_ie_maser_inv_lcl dell_ie_rac_4 dell_ie_rac_5 dell_ie_sas dell_ie_tape_ibm dell_ie_tape_prostor dell_ie_tape_tandberg dell_ie_zappa
 
 %description

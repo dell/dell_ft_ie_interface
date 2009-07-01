@@ -54,6 +54,8 @@ moduleUpdateLog = getLog(prefix="ftupdates.")
 #   1) create _vars.py and create makefile rule to generate
 #   2) create a module dir variable we can use here instead of hardcoding
 ie_submodule_dir = dell_ft_ie_interface.PKGLIBEXECDIR
+if not os.path.exists(ie_submodule_dir):
+    ie_submodule_dir = "/usr/libexec/dell_dup/"
 
 class ExecutionError(package.InstallError,): pass
 

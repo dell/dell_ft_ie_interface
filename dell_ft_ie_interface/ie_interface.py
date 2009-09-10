@@ -139,7 +139,7 @@ class IEInterface(package.RepositoryPackage):
                 else:
                     shutil.copy(fname, payloadDest)
 
-            stdout = runCmdFromPIEConfig(self.pieconfigdom, "Execution", "CliforceToStdout", os.path.join(tempdir, "ie"))
+            stdout = runCmdFromPIEConfig(self.pieconfigdom, "Execution", "CliforceToFile", os.path.join(tempdir, "ie"))
 
             svmexecution = xml.dom.minidom.parseString(stdout)
             spstatus = xmlHelp.getNodeElement(svmexecution, "SVMExecution", "SPStatus")
@@ -176,20 +176,25 @@ def runCmdFromPIEConfig(dom, which, cmd, path):
     updElem = xmlHelp.getNodeElement(dom, "PIEConfig", "Plugins", ("Plugin", {"description": which}))
     timeout = xmlHelp.getNodeAttribute(updElem, "timeout")
     cmdToRun = xmlHelp.getNodeText(updElem, cmd, "Command")
+    outFile = xmlHelp.getNodeText(updElem, cmd, "Output")
 
     moduleVerboseLog.info("\tPlugin command is %s" % cmdToRun)
+    moduleVerboseLog.info("\tOutput file is %s" % outFile)
     moduleVerboseLog.info("\tPlugin timeout is %s" % timeout)
+    cmdToRun = "./" + cmdToRun
 
-    subproc = cmdToRun.strip().split(" ")
-    subproc[0] = os.path.realpath(os.path.join(path, subproc[0]))
-    moduleVerboseLog.info("\tRunning plugin: %s", subproc)
+    nullfd_r = open("/dev/null", "r")
+    nullfd_w = open("/dev/null", "w")
 
-    pobj = subprocess.Popen( subproc, cwd=path, stdout=subprocess.PIPE )
-    (stdout, stderr) = pobj.communicate(None)
+    pobj = subprocess.Popen(cmdToRun, cwd=path, stdout=nullfd_w, stderr=nullfd_w, stdin=nullfd_r, close_fds=1, shell=True)
+    pobj.wait()
+
+    xmlout = open(os.path.join(path, outFile), "r")
+    output = xmlout.read()
     # TODO: need to implement timeout (little bit harder...)
 
-    moduleVerboseLog.info("output from the cmd was: \n%s" % stdout)
-    return stdout
+    moduleVerboseLog.info("output from the cmd was: \n%s" % output)
+    return output
 
 
 DELL_VEN_ID = 0x1028
@@ -222,7 +227,7 @@ def inventory_hook(conduit, inventory=None, *args, **kargs):
                 moduleVerboseLog.info("\tModule not for this system, disabling module.")
                 continue                
 
-            stdout = runCmdFromPIEConfig(pieconfigdom, "Inventory", "CliToStdout", path)
+            stdout = runCmdFromPIEConfig(pieconfigdom, "Inventory", "CliToFile", path)
 
             for device in svm.genPackagesFromSvmXml(stdout):
                 inventory.addDevice(device)

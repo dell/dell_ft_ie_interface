@@ -12,9 +12,9 @@ some docs here eventually.
 """
 
 # import arranged alphabetically
+import firmware_addon_dell.HelperXml as xmlHelp
 import firmwaretools.package as package
 import xml.dom.minidom
-import firmware_addon_dell.HelperXml as xmlHelp
 
 # sample XML:
 # <?xml version="1.0" encoding="UTF-8"?>
@@ -76,7 +76,7 @@ def genPackagesFromSvmXml(xmlstr):
             otherAttrs["dup_component_id"] = int(componentId,10)
             name = "dell_dup_componentid_%05d" % int(componentId,10)
 
-        displayname =  xmlHelp.getNodeAttribute(nodeElem, "display", ("Application", {"componentType":"FRMW"}))
+        displayname =  xmlHelp.getNodeAttribute(nodeElem, "display", "Application")
         if not displayname:
             displayname =  xmlHelp.getNodeAttribute(nodeElem, "display")
         if not displayname:
@@ -91,21 +91,11 @@ def genPackagesFromSvmXml(xmlstr):
         device = xmlHelp.getNodeAttribute(nodeElem, "device")
         function = xmlHelp.getNodeAttribute(nodeElem, "function")
 
-        otherAttrs["version"] = "unknown"
-        tagsToTry = (
-            # try BMC first, as it is "special"
-            ("version", ("Application", {"componentType":"FRMW", "display":"Embedded System Management Controller"})),
-            # next comes normal other firmware
-            ("version", ("Application", {"componentType":"FRMW"})),
-            # BIOS also seems to be special, but not short-bus special.
-            ("version", ("Application", {"componentType":"BIOS"})),
-            )
 
-        for tag in tagsToTry:
-            ver = xmlHelp.getNodeAttribute(nodeElem, *tag)
-            if ver:
-                otherAttrs["version"] = ver.lower()
-                break
+        otherAttrs["version"] = "unknown"
+        ver = xmlHelp.getNodeAttribute(nodeElem, "version", "Application")
+        if ver:
+            otherAttrs["version"] = ver.lower()
 
         if venId and devId:
             venId = int(venId, 16)

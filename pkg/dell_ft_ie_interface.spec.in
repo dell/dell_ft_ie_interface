@@ -46,7 +46,6 @@ BuildArch: noarch
 
 BuildRequires:  python-devel, firmware-tools, firmware-addon-dell, %{python_xml}
 Requires: firmware-tools >= 0:2.0.0, firmware-addon-dell >= 0:2.0, %{python_xml}
-Requires: dell_ie_bios dell_ie_bmc dell_ie_bp dell_ie_imc dell_ie_maser_inv_lcl dell_ie_rac_4 dell_ie_rac_5 dell_ie_sas dell_ie_tape_ibm dell_ie_tape_prostor dell_ie_tape_tandberg dell_ie_zappa
 
 %description
 make this a better description eventually

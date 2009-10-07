@@ -131,6 +131,7 @@ class IEInterface(package.RepositoryPackage):
             shutil.copytree(self.ie_module_path, os.path.join(tempdir, "ie"))
             if os.path.exists(os.path.join(tempdir, "ie", "donotmovepayload")):
                 payloadDest = os.path.join(tempdir, "ie", "payload")
+                os.mkdir(payloadDest, 0755)
             else:
                 payloadDest = os.path.join(tempdir, "ie")
             for fname in glob.glob(os.path.join(self.path, "*")):
@@ -138,6 +139,12 @@ class IEInterface(package.RepositoryPackage):
                     shutil.copytree(fname, os.path.join(payloadDest, os.path.basename(fname)))
                 else:
                     shutil.copy(fname, payloadDest)
+
+            if os.path.exists(os.path.join(tempdir, "ie", "payload")):
+                for file in ["dell-std-license.txt", "package.ini", "package.xml", ]:
+                    fullFile = os.path.join(tempdir, "ie", "payload", file)
+                    if os.path.exists(fullFile):
+                        shutil.move(fullFile, os.path.join(tempdir, "ie", file))
 
             stdout = runCmdFromPIEConfig(self.pieconfigdom, "Execution", "CliforceToFile", os.path.join(tempdir, "ie"))
 

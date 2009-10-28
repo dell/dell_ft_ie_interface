@@ -59,39 +59,13 @@ if not os.path.exists(ie_submodule_dir):
 
 class ExecutionError(package.InstallError,): pass
 
-decorate(traceLog())
-def numericOnlyCompareStrategy(ver1, ver2):
-    ver1 = int(ver1)
-    ver2 = int(ver2)
-    if ver1 == ver2:
-        return 0
-    if ver1 > ver2:
-        return 1
-    return -1
-
-decorate(traceLog())
-def textCompareStrategy(ver1, ver2):
-    if ver1 == ver2:
-        return 0
-    if ver1 > ver2:
-        return 1
-    return -1
-
 class IEInterface(package.RepositoryPackage):
     def __init__(self, *args, **kargs):
         super(IEInterface, self).__init__(*args, **kargs)
         self.capabilities['can_downgrade'] = True
         self.capabilities['can_reflash'] = True
         moduleVerboseLog.debug("Setting compare function")
-        if self.version.isdigit():
-            moduleVerboseLog.debug("\tnumericOnly")
-            self.compareStrategy = numericOnlyCompareStrategy
-        elif "." in self.version:
-            moduleVerboseLog.debug("\tdefault")
-            self.compareStrategy = package.defaultCompareStrategy
-        else:
-            moduleVerboseLog.debug("\ttext")
-            self.compareStrategy = textCompareStrategy
+        self.compareStrategy = package.defaultCompareStrategy
 
         # test harness sets this to None. No real use has this set to None
         if self.conf is not None:

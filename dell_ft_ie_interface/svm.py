@@ -116,13 +116,7 @@ def genPackagesFromSvmXml(xmlstr):
         if not name:
             continue
 
-        import ie_interface
-        if otherAttrs["version"].isdigit():
-            otherAttrs["compareStrategy"] = ie_interface.numericOnlyCompareStrategy
-        elif "." in otherAttrs["version"]:
-            otherAttrs["compareStrategy"] = package.defaultCompareStrategy
-        else:
-            otherAttrs["compareStrategy"] = ie_interface.textCompareStrategy
+        otherAttrs["compareStrategy"] = package.defaultCompareStrategy
 
         yield type(
             name=name,

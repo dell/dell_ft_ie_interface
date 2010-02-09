@@ -16,6 +16,11 @@ import firmware_addon_dell.HelperXml as xmlHelp
 import firmwaretools.package as package
 import xml.dom.minidom
 
+from firmwaretools.trace_decorator import decorate, traceLog, getLog
+import logging
+moduleLog = getLog()
+moduleVerboseLog = getLog(prefix="verbose.")
+
 # sample XML:
 # <?xml version="1.0" encoding="UTF-8"?>
 # <SVMInventory lang="en">
@@ -64,9 +69,14 @@ import xml.dom.minidom
 pciShortFirmStr = "pci_firmware(ven_0x%04x_dev_0x%04x)"
 pciFullFirmStr = "pci_firmware(ven_0x%04x_dev_0x%04x_subven_0x%04x_subdev_0x%04x)"
 
-def genPackagesFromSvmXml(xmlstr):
+def genPackagesFromSvmXml(xmlstr, path):
     otherAttrs={}
-    dom = xml.dom.minidom.parseString(xmlstr)
+    try:
+        dom = xml.dom.minidom.parseString(xmlstr)
+    except (xml.parsers.expat.ExpatError,), e:
+        moduleLog.info("Invalid XML from module %s", path)
+        return
+
     otherAttrs["dom"] = dom
     for nodeElem in xmlHelp.iterNodeElement( dom, "SVMInventory", "Device" ):
         otherAttrs["xmlNode"] = nodeElem

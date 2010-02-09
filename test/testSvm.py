@@ -31,7 +31,7 @@ class TestCase(unittest.TestCase):
 </SVMInventory>
 """
 
-        for p in svm.genPackagesFromSvmXml(testXml):
+        for p in svm.genPackagesFromSvmXml(testXml, "Test Harness"):
             actualResult.append(p)
 
         self.assertEqual(len(expectedResult), len(actualResult))
@@ -56,7 +56,7 @@ class TestCase(unittest.TestCase):
 </SVMInventory>
 """
 
-        for p in svm.genPackagesFromSvmXml(testXml):
+        for p in svm.genPackagesFromSvmXml(testXml, "Test Harness"):
             actualResult.append(p)
 
         self.assertEqual(len(expectedResult), len(actualResult))
@@ -81,7 +81,7 @@ class TestCase(unittest.TestCase):
 </SVMInventory>
 """
 
-        for p in svm.genPackagesFromSvmXml(testXml):
+        for p in svm.genPackagesFromSvmXml(testXml, "Test Harness"):
             actualResult.append(p)
 
         self.assertEqual(len(expectedResult), len(actualResult))
@@ -122,7 +122,7 @@ class TestCase(unittest.TestCase):
 </SVMInventory>
 """
 
-        for p in svm.genPackagesFromSvmXml(testXml):
+        for p in svm.genPackagesFromSvmXml(testXml, "Test Harness"):
             actualResult.append(p)
 
         self.assertEqual(len(expectedResult), len(actualResult))
@@ -173,7 +173,7 @@ class TestCase(unittest.TestCase):
     </Device>
 </SVMInventory>"""
 
-        for p in svm.genPackagesFromSvmXml(testXml):
+        for p in svm.genPackagesFromSvmXml(testXml, "Test Harness"):
             actualResult.append(p)
 
         self.assertEqual(len(expectedResult), len(actualResult))

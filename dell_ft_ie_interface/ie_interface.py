@@ -52,10 +52,10 @@ moduleUpdateLog = getLog(prefix="ftupdates.")
 
 # TODO:
 #   1) create _vars.py and create makefile rule to generate
-#   2) create a module dir variable we can use here instead of hardcoding
-ie_submodule_dir = dell_ft_ie_interface.PKGLIBEXECDIR
-if not os.path.exists(ie_submodule_dir):
-    ie_submodule_dir = "/usr/libexec/dell_dup/"
+if not dell_ft_ie_interface.PKGLIBEXECDIR == "/usr/libexec/dell_dup/":
+    ie_submodule_dirs = [ dell_ft_ie_interface.PKGLIBEXECDIR, "/usr/libexec/dell_dup/", ]
+else:
+    ie_submodule_dirs = [ dell_ft_ie_interface.PKGLIBEXECDIR, ]
 
 class ExecutionError(package.InstallError,): pass
 
@@ -69,11 +69,11 @@ class IEInterface(package.RepositoryPackage):
 
         # test harness sets this to None. No real use has this set to None
         if self.conf is not None:
-            self.ie_module_path = os.path.join(ie_submodule_dir, self.conf.get("package", "ie_type"))
-            self.pieconffile = os.path.join(ie_submodule_dir, self.conf.get("package", "ie_type"), "PIEConfig.xml")
-            moduleVerboseLog.info("loading xml from: %s" % self.pieconffile)
-            self.pieconfigdom = xml.dom.minidom.parse(self.pieconffile)
-            moduleVerboseLog.info("loaded.")
+            for ie_submodule_dir in ie_submodule_dirs:
+                self.ie_module_path = os.path.join(ie_submodule_dir, self.conf.get("package", "ie_type"))
+                if os.path.exists(self.ie_module_path):
+                    self.pieconffile = os.path.join(self.ie_module_path, "PIEConfig.xml")
+                    break
 
     decorate(traceLog())
     def install(self):
@@ -102,7 +102,23 @@ class IEInterface(package.RepositoryPackage):
 
         tempdir = tempfile.mkdtemp(prefix="firmware_install")
         try:
-            shutil.copytree(self.ie_module_path, os.path.join(tempdir, "ie"))
+            try:
+                shutil.copytree(self.ie_module_path, os.path.join(tempdir, "ie"))
+            except OSError:
+                message="IE module not found for package: %s" % self.name
+                self.status = "failed"
+                raise ExecutionError(message)                
+
+            moduleVerboseLog.info("loading xml from: %s" % self.pieconffile)
+            try:
+                self.pieconfigdom = xml.dom.minidom.parse(self.pieconffile)
+            except (xml.parsers.expat.ExpatError,), e:
+                message="PIEConfig invalid for package: %s" % self.name
+                self.status = "failed"
+                raise ExecutionError(message)                
+            moduleVerboseLog.info("loaded.")
+
+
             if os.path.exists(os.path.join(tempdir, "ie", "donotmovepayload")):
                 payloadDest = os.path.join(tempdir, "ie", "payload")
                 os.mkdir(payloadDest, 0755)
@@ -122,7 +138,13 @@ class IEInterface(package.RepositoryPackage):
 
             stdout = runCmdFromPIEConfig(self.pieconfigdom, "Execution", "CliforceToFile", os.path.join(tempdir, "ie"))
 
-            svmexecution = xml.dom.minidom.parseString(stdout)
+            try:
+                svmexecution = xml.dom.minidom.parseString(stdout)
+            except (xml.parsers.expat.ExpatError,), e:
+                message="Could not parse output, bad xml for package: %s" % self.name
+                self.status = "failed"
+                raise ExecutionError(message)
+
             spstatus = xmlHelp.getNodeElement(svmexecution, "SVMExecution", "SPStatus")
             if not spstatus:
                 spstatus = xmlHelp.getNodeElement(svmexecution, "SVMExecution", "Device", "Application", "SPStatus")
@@ -185,34 +207,34 @@ def inventory_hook(conduit, inventory=None, *args, **kargs):
     base = conduit.getBase()
     cb = base.cb
 
-    moduleVerboseLog.info("not verbose --> INFO: hi there")
     moduleVerboseLog.info("verobse INFO: hi there")
     moduleVerboseLog.debug("verobse DEBUG: hi there")
 
     # Here we will run each installed IE module and collect the results
     # TODO: need to cache results.
-    for (path, dirs, files) in pycompat.walkPath(ie_submodule_dir):
-        if "PIEConfig.xml" in files:
-            moduleVerboseLog.info("Running IE Submodule for %s" % path)
-            try:
-                pieconfigdom = xml.dom.minidom.parse(os.path.join(path,"PIEConfig.xml"))
-            except (xml.parsers.expat.ExpatError,), e:
-                moduleVerboseLog.info("\tcould not parse module PIEConfig.xml, disabling module.")
-                continue
-            
-            venId, sysId = base.getSystemId()
-            supportedSysIds = []
-            for modelNode in xmlHelp.iterNodeElement(pieconfigdom, "PIEConfig", "SupportedSystems", "Brand", "Model" ):
-                supportedSysIds.append(int(xmlHelp.getNodeAttribute(modelNode, "systemID"), 16))
-            if len(supportedSysIds) > 0 and sysId not in supportedSysIds:
-                moduleVerboseLog.info("\tModule not for this system, disabling module.")
-                continue                
+    for ie_submodule_dir in ie_submodule_dirs:
+        for (path, dirs, files) in pycompat.walkPath(ie_submodule_dir):
+            if "PIEConfig.xml" in files:
+                moduleVerboseLog.info("Running IE Submodule for %s" % path)
+                try:
+                    pieconfigdom = xml.dom.minidom.parse(os.path.join(path,"PIEConfig.xml"))
+                except (xml.parsers.expat.ExpatError,), e:
+                    moduleVerboseLog.info("\tcould not parse module PIEConfig.xml, disabling module.")
+                    continue
 
-            stdout = runCmdFromPIEConfig(pieconfigdom, "Inventory", "CliToFile", path)
+                venId, sysId = base.getSystemId()
+                supportedSysIds = []
+                for modelNode in xmlHelp.iterNodeElement(pieconfigdom, "PIEConfig", "SupportedSystems", "Brand", "Model" ):
+                    supportedSysIds.append(int(xmlHelp.getNodeAttribute(modelNode, "systemID"), 16))
+                if len(supportedSysIds) > 0 and sysId not in supportedSysIds:
+                    moduleVerboseLog.info("\tModule not for this system, disabling module.")
+                    continue                
 
-            for device in svm.genPackagesFromSvmXml(stdout):
-                inventory.addDevice(device)
-                moduleVerboseLog.info("Added DEVICE: %s" % device.name)
+                stdout = runCmdFromPIEConfig(pieconfigdom, "Inventory", "CliToFile", path)
+
+                for device in svm.genPackagesFromSvmXml(stdout, path):
+                    inventory.addDevice(device)
+                    moduleVerboseLog.info("Added DEVICE: %s" % device.name)
 
 
 

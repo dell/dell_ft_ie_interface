@@ -107,14 +107,17 @@ def genPackagesFromSvmXml(xmlstr, path):
         if ver:
             otherAttrs["version"] = ver.lower()
 
+        shortname = None
         if venId and devId:
             venId = int(venId, 16)
             devId = int(devId, 16)
-            name = pciShortFirmStr % (venId, devId)
+            shortname = name = pciShortFirmStr % (venId, devId)
             if subvenId and subdevId:
                 subdevId = int(subdevId,16)
                 subvenId = int(subvenId,16)
                 name = pciFullFirmStr % (venId, devId, subvenId, subdevId)
+            else:
+                shortname = None
 
         if bus and device and function:
             bus = int(bus, 16)
@@ -128,8 +131,22 @@ def genPackagesFromSvmXml(xmlstr, path):
 
         otherAttrs["compareStrategy"] = package.defaultCompareStrategy
 
-        yield type(
-            name=name,
+#        yield type(
+#            name=name,
+#            displayname=displayname,
+#            **otherAttrs
+#            )
+        if shortname:
+            yield type (
+            name = name,
+            shortname=shortname,
             displayname=displayname,
             **otherAttrs
             )
+        else:
+       	    yield type (
+            name = name,
+            displayname=displayname,
+            **otherAttrs
+        );
+              
